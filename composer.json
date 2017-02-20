@@ -1,0 +1,15 @@
+{
+  "name": "neos/content-repository-eventsourced",
+  "type": "neos-package",
+  "description": "Development prototype for the event-sourced rewrite of the Neos Content Repository",
+  "license": "GPL-3.0+",
+  "require": {
+    "neos/content-repository": "dev-master",
+    "neos/event-sourcing": "dev-master"
+  },
+  "autoload": {
+    "psr-4": {
+      "Neos\\ContentRepository\\EventSourced\\": "Classes"
+    }
+  }
+}
