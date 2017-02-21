@@ -45,9 +45,12 @@ class InterDimensionalFallbackGraph
         return $subgraph;
     }
 
-    public function connectSubgraphs(ContentSubgraph $variant, ContentSubgraph $fallback)
+    public function connectSubgraphs(ContentSubgraph $variant, ContentSubgraph $fallback): VariationEdge
     {
-        new VariationEdge($variant, $fallback, $this->calculateFallbackWeight($variant, $fallback));
+        if ($variant === $fallback) {
+            throw new IntraDimension\Exception\InvalidFallbackException();
+        }
+        return new VariationEdge($variant, $fallback, $this->calculateFallbackWeight($variant, $fallback));
     }
 
     public function calculateFallbackWeight(ContentSubgraph $variant, ContentSubgraph $fallback)
