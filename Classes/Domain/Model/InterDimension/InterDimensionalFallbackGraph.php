@@ -17,7 +17,6 @@ use Neos\Flow\Annotations as Flow;
 /**
  * The inter dimensional fallback graph domain model
  * Represents the fallback mechanism between content subgraphs
- * @api
  */
 class InterDimensionalFallbackGraph
 {
@@ -89,6 +88,7 @@ class InterDimensionalFallbackGraph
     /**
      * @param ContentSubgraph $contentSubgraph
      * @return ContentSubgraph|null
+     * @api
      */
     public function getPrimaryFallback(ContentSubgraph $contentSubgraph)
     {
@@ -106,6 +106,7 @@ class InterDimensionalFallbackGraph
 
     /**
      * @return array|ContentSubgraph[]
+     * @api
      */
     public function getSubgraphs(): array
     {
@@ -115,6 +116,7 @@ class InterDimensionalFallbackGraph
     /**
      * @param string $identityHash
      * @return ContentSubgraph|null
+     * @api
      */
     public function getSubgraph(string $identityHash)
     {
