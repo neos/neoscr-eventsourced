@@ -39,7 +39,7 @@ class InterDimensionalFallbackGraphTest extends UnitTestCase
      */
     public function connectSubgraphsAddsFallbackToVariant()
     {
-        $contentDimension = new IntraDimension\ContentDimension('test');
+        $contentDimension = new IntraDimension\ContentDimension('test', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $fallbackValue = $contentDimension->createValue('a');
         $variantValue = $contentDimension->createValue('b', $fallbackValue);
         $graph = new InterDimension\InterDimensionalFallbackGraph([$contentDimension]);
@@ -57,7 +57,7 @@ class InterDimensionalFallbackGraphTest extends UnitTestCase
      */
     public function connectSubgraphsAddsVariantToFallback()
     {
-        $contentDimension = new IntraDimension\ContentDimension('test');
+        $contentDimension = new IntraDimension\ContentDimension('test', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $fallbackValue = $contentDimension->createValue('a');
         $variantValue = $contentDimension->createValue('b', $fallbackValue);
         $graph = new InterDimension\InterDimensionalFallbackGraph([$contentDimension]);
@@ -138,11 +138,11 @@ class InterDimensionalFallbackGraphTest extends UnitTestCase
      */
     public function determineWeightNormalizationBaseEvaluatesToMaximumDimensionDepthPlusOne()
     {
-        $firstDimension = new IntraDimension\ContentDimension('first');
+        $firstDimension = new IntraDimension\ContentDimension('first', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $firstDepth = random_int(0, 100);
         ObjectAccess::setProperty($firstDimension, 'depth', $firstDepth, true);
 
-        $secondDimension = new IntraDimension\ContentDimension('second');
+        $secondDimension = new IntraDimension\ContentDimension('second', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $secondDepth = random_int(0, 100);
         ObjectAccess::setProperty($secondDimension, 'depth', $secondDepth, true);
 
@@ -160,11 +160,11 @@ class InterDimensionalFallbackGraphTest extends UnitTestCase
      */
     public function normalizeWeightCorrectlyCalculatesNormalizedWeight(int $dimensionDepth, array $weight, int $expectedNormalizedWeight)
     {
-        $primaryDimension = new IntraDimension\ContentDimension('primary');
+        $primaryDimension = new IntraDimension\ContentDimension('primary', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         ObjectAccess::setProperty($primaryDimension, 'depth', $dimensionDepth, true);
-        $secondaryDimension = new IntraDimension\ContentDimension('secondary');
+        $secondaryDimension = new IntraDimension\ContentDimension('secondary', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         ObjectAccess::setProperty($secondaryDimension, 'depth', $dimensionDepth, true);
-        $tertiaryDimension = new IntraDimension\ContentDimension('tertiary');
+        $tertiaryDimension = new IntraDimension\ContentDimension('tertiary', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         ObjectAccess::setProperty($tertiaryDimension, 'depth', $dimensionDepth, true);
 
         $graph = new InterDimension\InterDimensionalFallbackGraph([$primaryDimension, $secondaryDimension, $tertiaryDimension]);
@@ -173,7 +173,7 @@ class InterDimensionalFallbackGraphTest extends UnitTestCase
         $fallback = new InterDimension\ContentSubgraph([]);
         $variationEdge = new InterDimension\VariationEdge($variant, $fallback, $weight);
 
-        $this->assertSame($expectedNormalizedWeight, $graph->normalizeWeight($variationEdge));
+        $this->assertSame($expectedNormalizedWeight, $graph->normalizeWeight($variationEdge->getWeight()));
     }
 
     public function variationEdgeWeightNormalizationProvider()
@@ -193,15 +193,15 @@ class InterDimensionalFallbackGraphTest extends UnitTestCase
      */
     public function getPrimaryFallbackReturnsFallbackWithLowestNormalizedWeight( $primaryFallbackWeight,  $secondaryFallbackWeight)
     {
-        $primaryDimension = new IntraDimension\ContentDimension('primary');
+        $primaryDimension = new IntraDimension\ContentDimension('primary', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $primaryVariantValue = $primaryDimension->createValue('variant');
         $primaryDummyValue1 = $primaryDimension->createValue('dummy1');
         $primaryDummyValue2 = $primaryDimension->createValue('dummy2');
         ObjectAccess::setProperty($primaryDimension, 'depth', 5, true);
-        $secondaryDimension = new IntraDimension\ContentDimension('secondary');
+        $secondaryDimension = new IntraDimension\ContentDimension('secondary', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $secondaryDummyValue = $secondaryDimension->createValue('dummy');
         ObjectAccess::setProperty($secondaryDimension, 'depth', 5, true);
-        $tertiaryDimension = new IntraDimension\ContentDimension('tertiary');
+        $tertiaryDimension = new IntraDimension\ContentDimension('tertiary', IntraDimension\ContentDimension::SOURCE_PRESET_SOURCE);
         $tertiaryDummyValue = $tertiaryDimension->createValue('dummy');
         ObjectAccess::setProperty($tertiaryDimension, 'depth', 5, true);
 

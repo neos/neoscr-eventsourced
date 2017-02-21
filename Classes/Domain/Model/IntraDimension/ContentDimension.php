@@ -18,6 +18,9 @@ use Neos\Flow\Annotations as Flow;
  */
 class ContentDimension
 {
+    const SOURCE_PRESET_SOURCE = 'presetSource';
+    const SOURCE_WORKSPACE_REPOSITORY = 'workspaceRepository';
+
     /**
      * @var string
      */
@@ -33,10 +36,16 @@ class ContentDimension
      */
     protected $depth = 0;
 
+    /**
+     * @var string
+     */
+    protected $source;
 
-    public function __construct(string $name)
+
+    public function __construct(string $name, string $source)
     {
         $this->name = $name;
+        $this->source = $source;
     }
 
 
@@ -44,6 +53,12 @@ class ContentDimension
     {
         return $this->name;
     }
+
+    public function getSource(): string
+    {
+        return $this->source;
+    }
+
 
     public function createValue(string $value, ContentDimensionValue $fallback = null): ContentDimensionValue
     {
