@@ -42,12 +42,6 @@ class FallbackGraphService
      */
     protected $contentDimensionPresetSource;
 
-    /**
-     * @Flow\Inject
-     * @var ContentRepository\Service\ContentDimensionCombinator
-     */
-    protected $contentDimensionCombinator;
-
 
     /**
      * @var IntraDimension\IntraDimensionalFallbackGraph
@@ -65,8 +59,6 @@ class FallbackGraphService
      */
     public function initializeObject()
     {
-        $this->workspaceRepository->countAll();
-
         $prioritizedContentDimensions = $this->populateIntraDimensionalFallbackGraph();
         $this->populateInterDimensionalFallbackGraph($prioritizedContentDimensions);
     }
