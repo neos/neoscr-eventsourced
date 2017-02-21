@@ -63,12 +63,12 @@ class InterDimensionalFallbackGraph
         return $weight;
     }
 
-    public function normalizeWeight(VariationEdge $variationEdge): int
+    public function normalizeWeight(array $weight): int
     {
         $base = $this->determineWeightNormalizationBase();
         $normalizedWeight = 0;
         $exponent = 0;
-        foreach (array_reverse($variationEdge->getWeight()) as $dimensionName => $dimensionFallbackWeight) {
+        foreach (array_reverse($weight) as $dimensionName => $dimensionFallbackWeight) {
             $normalizedWeight += pow($base, $exponent) * $dimensionFallbackWeight;
             $exponent++;
         }
@@ -97,8 +97,8 @@ class InterDimensionalFallbackGraph
             return null;
         }
 
-        uasort($fallbackEdges, function ($edgeA, $edgeB) {
-            return $this->normalizeWeight($edgeA) <=> $this->normalizeWeight($edgeB);
+        uasort($fallbackEdges, function (VariationEdge $edgeA, VariationEdge $edgeB) {
+            return $this->normalizeWeight($edgeA->getWeight()) <=> $this->normalizeWeight($edgeB->getWeight());
         });
 
         return reset($fallbackEdges)->getFallback();

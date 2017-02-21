@@ -40,6 +40,11 @@ class ContentSubgraph
      */
     protected $variantEdges;
 
+    /**
+     * @var array
+     */
+    protected $weight;
+
 
     /**
      * @param array|IntraDimension\ContentDimensionValue[] $dimensionValues
@@ -50,6 +55,7 @@ class ContentSubgraph
         foreach ($dimensionValues as $dimensionName => $dimensionValue) {
             $this->dimensionValues[$dimensionName] = $dimensionValue;
             $identityComponents[$dimensionName] = $dimensionValue->getValue();
+            $this->weight[$dimensionName] = $dimensionValue->getDepth();
         }
         $this->identityHash = SubgraphUtility::hashIdentityComponents($identityComponents);
     }
@@ -71,6 +77,11 @@ class ContentSubgraph
     public function getIdentityHash(): string
     {
         return $this->identityHash;
+    }
+
+    public function getWeight(): array
+    {
+        return $this->weight;
     }
 
     public function registerVariantEdge(VariationEdge $variant)
