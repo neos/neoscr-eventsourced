@@ -11,14 +11,13 @@ namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
  * source code.
  */
 
-use Neos\EventSourcing\Event\EventInterface;
 use Neos\Flow\Annotations as Flow;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A node was inserted
  */
-class NodeWasInserted implements EventInterface
+class NodeWasInserted extends AbstractDimensionAwareEvent
 {
     /**
      * @var string
@@ -29,11 +28,6 @@ class NodeWasInserted implements EventInterface
      * @var string
      */
     protected $identifier;
-
-    /**
-     * @var array
-     */
-    protected $contentDimensionValues;
 
     /**
      * @var string
@@ -81,9 +75,9 @@ class NodeWasInserted implements EventInterface
         int $position,
         array $properties
     ) {
+        parent::__construct($contentDimensionValues);
         $this->variantIdentifier = $variantIdentifier;
         $this->identifier = $identifier;
-        $this->contentDimensionValues = $contentDimensionValues;
         $this->nodeType = $nodeType;
         $this->parentIdentifier = $parentIdentifier;
         $this->path = $path;
@@ -106,14 +100,6 @@ class NodeWasInserted implements EventInterface
     public function getIdentifier(): string
     {
         return $this->identifier;
-    }
-
-    /**
-     * @return array
-     */
-    public function getContentDimensionValues(): array
-    {
-        return $this->contentDimensionValues;
     }
 
     /**

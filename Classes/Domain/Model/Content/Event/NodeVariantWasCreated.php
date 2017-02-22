@@ -11,13 +11,12 @@ namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
  * source code.
  */
 
-use Neos\EventSourcing\Event\EventInterface;
 use Neos\Flow\Annotations as Flow;
 
 /**
  * A node variant was created
  */
-class NodeVariantWasCreated implements EventInterface
+class NodeVariantWasCreated extends AbstractDimensionAwareEvent
 {
     const STRATEGY_COPY = 'copy';
     const STRATEGY_EMPTY = 'empty';
@@ -31,11 +30,6 @@ class NodeVariantWasCreated implements EventInterface
      * @var string
      */
     protected $fallbackIdentifier;
-
-    /**
-     * @var array
-     */
-    protected $contentDimensionValues = [];
 
     /**
      * @var string
@@ -55,9 +49,9 @@ class NodeVariantWasCreated implements EventInterface
         array $contentDimensionValues,
         string $strategy
     ) {
+        parent::__construct($contentDimensionValues);
         $this->variantIdentifier = $variantIdentifier;
         $this->fallbackIdentifier = $fallbackIdentifier;
-        $this->contentDimensionValues = $contentDimensionValues;
         $this->strategy = $strategy;
     }
 
@@ -76,14 +70,6 @@ class NodeVariantWasCreated implements EventInterface
     public function getFallbackIdentifier(): string
     {
         return $this->fallbackIdentifier;
-    }
-
-    /**
-     * @return array
-     */
-    public function getContentDimensionValues(): array
-    {
-        return $this->contentDimensionValues;
     }
 
     /**

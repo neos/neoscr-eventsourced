@@ -11,13 +11,12 @@ namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
  * source code.
  */
 
-use Neos\EventSourcing\Event\EventInterface;
 use Neos\Flow\Annotations as Flow;
 
 /**
- * A node was inserted
+ * A node was moved
  */
-class NodeWasMoved implements EventInterface
+class NodeWasMoved extends AbstractDimensionAwareEvent
 {
     /**
      * @var string
@@ -28,11 +27,6 @@ class NodeWasMoved implements EventInterface
      * @var string
      */
     protected $identifier;
-
-    /**
-     * @var array
-     */
-    protected $contentDimensionValues = [];
 
     /**
      * @var string
@@ -80,9 +74,9 @@ class NodeWasMoved implements EventInterface
         int $position,
         array $properties
     ) {
+        parent::__construct($contentDimensionValues);
         $this->variantIdentifier = $variantIdentifier;
         $this->identifier = $identifier;
-        $this->contentDimensionValues = $contentDimensionValues;
         $this->nodeType = $nodeType;
         $this->parentIdentifier = $parentIdentifier;
         $this->path = $path;
@@ -105,14 +99,6 @@ class NodeWasMoved implements EventInterface
     public function getIdentifier(): string
     {
         return $this->identifier;
-    }
-
-    /**
-     * @return array
-     */
-    public function getContentDimensionValues(): array
-    {
-        return $this->contentDimensionValues;
     }
 
     /**
