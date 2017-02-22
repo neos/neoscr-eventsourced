@@ -35,6 +35,11 @@ class PropertiesWereUpdated implements EventInterface
     protected $properties;
 
 
+    /**
+     * @param string $variantIdentifier
+     * @param string $nodeIdentifier
+     * @param array $properties
+     */
     public function __construct(
         string $variantIdentifier,
         string $nodeIdentifier,

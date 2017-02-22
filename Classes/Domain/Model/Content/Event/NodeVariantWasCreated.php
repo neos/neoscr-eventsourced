@@ -44,6 +44,12 @@ class NodeVariantWasCreated implements EventInterface
     protected $strategy;
 
 
+    /**
+     * @param string $variantIdentifier
+     * @param string $fallbackIdentifier
+     * @param array $contentDimensionValues
+     * @param string $strategy
+     */
     public function __construct(
         string $variantIdentifier,
         string $fallbackIdentifier,

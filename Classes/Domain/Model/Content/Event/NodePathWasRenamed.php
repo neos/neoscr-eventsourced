@@ -35,6 +35,11 @@ class NodePathWasRenamed implements EventInterface
     protected $newPath;
 
 
+    /**
+     * @param string $variantIdentifier
+     * @param string $nodeIdentifier
+     * @param string $newPath
+     */
     public function __construct(
         string $variantIdentifier,
         string $nodeIdentifier,

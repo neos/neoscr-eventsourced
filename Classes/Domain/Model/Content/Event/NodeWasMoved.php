@@ -61,6 +61,16 @@ class NodeWasMoved implements EventInterface
     protected $properties;
 
 
+    /**
+     * @param string $variantIdentifier
+     * @param string $identifier
+     * @param array $contentDimensionValues
+     * @param string $nodeType
+     * @param string $parentIdentifier
+     * @param string $path
+     * @param int $position
+     * @param array $properties
+     */
     public function __construct(
         string $variantIdentifier,
         string $identifier,
