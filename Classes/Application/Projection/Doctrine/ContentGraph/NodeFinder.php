@@ -17,7 +17,7 @@ use Neos\Flow\Annotations as Flow;
 /**
  * The doctrine node finder
  *
- * @method Node findOneByIdentifierInGraph(string $variantIdentifier)
+ * @method Node findOneByIdentifierInGraph(string $identifierInGraph)
  *
  * @Flow\Scope("singleton")
  */

@@ -51,10 +51,7 @@ class GraphProjector extends AbstractDoctrineProjector
 
     public function whenNodeWasInserted(Event\NodeWasInserted $event)
     {
-        $subgraphIdentity = $event->getContentDimensionValues();
-        /* @todo fetch from event stream vector instead */
-        $subgraphIdentity['editingSession'] = 'live';
-        $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
+        $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
 
         $node = new Node();
         $node->identifierInGraph = $event->getVariantIdentifier();
@@ -81,5 +78,14 @@ class GraphProjector extends AbstractDoctrineProjector
         }
 
         $this->projectionPersistenceManager->persistAll();
+    }
+
+    protected function extractSubgraphIdentifierFromEvent(Event\AbstractDimensionAwareEvent $event): string
+    {
+        $subgraphIdentity = $event->getContentDimensionValues();
+        /* @todo fetch from event stream vector instead */
+        $subgraphIdentity['editingSession'] = 'live';
+
+        return SubgraphUtility::hashIdentityComponents($subgraphIdentity);
     }
 }

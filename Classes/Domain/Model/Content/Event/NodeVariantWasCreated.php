@@ -11,7 +11,6 @@ namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
  * source code.
  */
 
-use Neos\ContentRepository\Domain as ContentRepository;
 use Neos\EventSourcing\Event\EventInterface;
 use Neos\Flow\Annotations as Flow;
 
