@@ -33,12 +33,12 @@ class ContentSubgraph
     /**
      * @var array
      */
-    protected $fallbackEdges;
+    protected $fallbackEdges = [];
 
     /**
      * @var array
      */
-    protected $variantEdges;
+    protected $variantEdges = [];
 
     /**
      * @var array
