@@ -175,6 +175,20 @@ class FallbackGraphService
         return $presetCombination;
     }
 
+    /**
+     * @param string $subgraphIdentifier
+     * @return array
+     */
+    public function determineAffectedVariantSubgraphIdentifiers(string $subgraphIdentifier): array
+    {
+        $affectedVariantIdentifiers = [$subgraphIdentifier];
+        $subgraph = $this->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
+        foreach ($subgraph->getVariants() as $variantSubgraph) {
+            $affectedVariantIdentifiers[] = $variantSubgraph->getIdentityHash();
+        }
+
+        return $affectedVariantIdentifiers;
+    }
 
     /**
      * @return IntraDimension\IntraDimensionalFallbackGraph
