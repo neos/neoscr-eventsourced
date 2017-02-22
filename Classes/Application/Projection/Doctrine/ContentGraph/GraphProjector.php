@@ -16,6 +16,7 @@ use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
 use Neos\ContentRepository\EventSourced\Utility\SubgraphUtility;
 use Neos\EventSourcing\Projection\Doctrine\AbstractDoctrineProjector;
 use Neos\Flow\Annotations as Flow;
+use Neos\Utility\Arrays;
 
 /**
  * The alternate reality-aware graph projector for the Doctrine backend
@@ -29,6 +30,12 @@ class GraphProjector extends AbstractDoctrineProjector
      * @var NodeFinder
      */
     protected $nodeFinder;
+
+    /**
+     * @Flow\Inject
+     * @var HierarchyEdgeFinder
+     */
+    protected $hierarchyEdgeFinder;
 
     /**
      * @Flow\Inject
@@ -75,6 +82,78 @@ class GraphProjector extends AbstractDoctrineProjector
             $variantHierarchyEdge->name = $event->getPath();
             $variantHierarchyEdge->position = $event->getPosition();
             $this->add($variantHierarchyEdge);
+        }
+
+        $this->projectionPersistenceManager->persistAll();
+    }
+
+    public function whenNodeVariantWasCreated(Event\NodeVariantWasCreated $event)
+    {
+        $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
+
+        $fallbackNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getFallbackIdentifier());
+
+        $nodeVariant = new Node();
+        $nodeVariant->identifierInGraph = $event->getVariantIdentifier();
+        $nodeVariant->identifierInSubgraph = $fallbackNode->identifierInSubgraph;
+        $nodeVariant->nodeTypeName = $fallbackNode->nodeTypeName;
+        $nodeVariant->subgraphIdentifier = $subgraphIdentifier;
+        if ($event->getStrategy() === Event\NodeVariantWasCreated::STRATEGY_COPY) {
+            $nodeVariant->properties = $fallbackNode->properties;
+        }
+        $this->add($nodeVariant);
+
+        $variantSubgraphIdentifiers = $this->fallbackGraphService->determineAffectedVariantSubgraphIdentifiers($subgraphIdentifier);
+
+        foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($fallbackNode, $variantSubgraphIdentifiers) as $variantEdge) {
+            $variantEdge->childNodesIdentifierInGraph = $nodeVariant->identifierInGraph;
+            $this->update($variantEdge);
+        }
+        foreach ($this->hierarchyEdgeFinder->findOutboundByNodeAndSubgraphs($fallbackNode, $variantSubgraphIdentifiers) as $variantEdge) {
+            $variantEdge->parentNodesIdentifierInGraph = $nodeVariant->identifierInGraph;
+            $this->update($variantEdge);
+        }
+
+        $this->projectionPersistenceManager->persistAll();
+    }
+
+    public function whenPropertiesWereUpdated(Event\PropertiesWereUpdated $event)
+    {
+        $node = $this->nodeFinder->findOneByIdentifierInGraph($event->getVariantIdentifier());
+        $node->properties = Arrays::arrayMergeRecursiveOverrule($node->properties, $event->getProperties());
+        $this->update($node);
+
+        $this->projectionPersistenceManager->persistAll();
+    }
+
+    public function whenNodeWasMoved(Event\NodeWasMoved $event)
+    {
+        $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
+        $variantSubgraphIdentifiers = $this->fallbackGraphService->determineAffectedVariantSubgraphIdentifiers($subgraphIdentifier);
+
+        foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($event->getVariantIdentifier(), $variantSubgraphIdentifiers) as $variantEdge) {
+            $variantEdge->parentNodesIdentifierInGraph = $event->getParentIdentifier();
+            $this->update($variantEdge);
+        }
+
+        $this->projectionPersistenceManager->persistAll();
+    }
+
+    public function whenNodeWasRemoved(Event\NodeWasRemoved $event)
+    {
+        $node = $this->nodeFinder->findOneByIdentifierInGraph($event->getVariantIdentifier());
+        $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
+
+        if ($node->subgraphIdentifier === $subgraphIdentifier) {
+            foreach ($this->hierarchyEdgeFinder->findByChildNodeIdentifierInGraph($event->getVariantIdentifier()) as $inboundEdge) {
+                $this->remove($inboundEdge);
+            }
+            $this->remove($node);
+        } else {
+            $affectedSubgraphIdentifiers = $this->fallbackGraphService->determineAffectedVariantSubgraphIdentifiers($subgraphIdentifier);
+            foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($event->getVariantIdentifier(), $affectedSubgraphIdentifiers) as $affectedInboundEdge) {
+                $this->remove($affectedInboundEdge);
+            }
         }
 
         $this->projectionPersistenceManager->persistAll();
