@@ -72,7 +72,7 @@ class FallbackGraphService
         $this->intraDimensionalFallbackGraph = new IntraDimension\IntraDimensionalFallbackGraph();
 
         $this->populatePresetDimensions($prioritizedContentDimensions);
-        $this->populateWorkspaceDimension($prioritizedContentDimensions);
+        $this->populateEditingSessionDimension($prioritizedContentDimensions);
 
         return $prioritizedContentDimensions;
     }
@@ -101,36 +101,14 @@ class FallbackGraphService
         }
     }
 
-    protected function populateWorkspaceDimension(array & $prioritizedContentDimensions)
+    protected function populateEditingSessionDimension(array & $prioritizedContentDimensions)
     {
-        $workspaceDimension = $this->intraDimensionalFallbackGraph->createDimension('workspace', IntraDimension\ContentDimension::SOURCE_WORKSPACE_REPOSITORY);
-        $groupedWorkspaces = [];
-        $rootWorkspace = null;
+        $workspaceDimension = $this->intraDimensionalFallbackGraph->createDimension('editingSession', IntraDimension\ContentDimension::SOURCE_WORKSPACE_REPOSITORY);
         foreach ($this->workspaceRepository->findAll() as $workspace) {
-            /** @var ContentRepository\Model\Workspace $workspace */
-            if ($workspace->getBaseWorkspace()) {
-                $groupedWorkspaces[$workspace->getBaseWorkspace()->getName()][] = $workspace;
-            } else {
-                $rootWorkspace = $workspace;
-            }
+            $workspaceDimension->createValue($workspace->getName());
         }
 
-        $this->populateWorkspaceDimensionWithWorkspace($workspaceDimension, $rootWorkspace, null, $groupedWorkspaces);
         $prioritizedContentDimensions[] = $workspaceDimension;
-    }
-
-    protected function populateWorkspaceDimensionWithWorkspace(
-        IntraDimension\ContentDimension $workspaceDimension,
-        ContentRepository\Model\Workspace $variantWorkspace,
-        IntraDimension\ContentDimensionValue $fallbackDimensionValue = null,
-        array $groupedWorkspaces
-    ) {
-        $currentDimensionValue = $workspaceDimension->createValue($variantWorkspace->getName(), $fallbackDimensionValue);
-        if (isset($groupedWorkspaces[$variantWorkspace->getName()])) {
-            foreach ($groupedWorkspaces[$variantWorkspace->getName()] as $workspace) {
-                $this->populateWorkspaceDimensionWithWorkspace($workspaceDimension, $workspace, $currentDimensionValue, $groupedWorkspaces);
-            }
-        }
     }
 
     /**
