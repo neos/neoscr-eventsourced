@@ -30,26 +30,16 @@ class HierarchyEdge
     public $parentNodesIdentifierInGraph;
 
     /**
-     * @var string
-     */
-    public $parentNodesIdentifierInSubgraph;
-
-    /**
      * @ORM\Id
      * @var string
      */
     public $subgraphIdentifier;
 
     /**
-     * @var string
-     */
-    public $childNodesIdentifierInGraph;
-
-    /**
      * @ORM\Id
      * @var string
      */
-    public $childNodesIdentifierInSubgraph;
+    public $childNodesIdentifierInGraph;
 
     /**
      * @var string
@@ -65,9 +55,7 @@ class HierarchyEdge
     public function connect(Node $parentNode, Node $childNode, ContentSubgraph $contentSubgraph)
     {
         $this->parentNodesIdentifierInGraph = $parentNode->identifierInGraph;
-        $this->parentNodesIdentifierInSubgraph = $parentNode->identifierInSubgraph;
         $this->subgraphIdentifier = $contentSubgraph->getIdentityHash();
         $this->childNodesIdentifierInGraph = $childNode->identifierInGraph;
-        $this->childNodesIdentifierInSubgraph = $childNode->identifierInSubgraph;
     }
 }
