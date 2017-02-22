@@ -51,7 +51,7 @@ class NodeWasMoved implements EventInterface
     protected $path;
 
     /**
-     * @var string
+     * @var int
      */
     protected $position;
 
@@ -68,7 +68,7 @@ class NodeWasMoved implements EventInterface
         string $nodeType,
         string $parentIdentifier,
         string $path,
-        string $position,
+        int $position,
         array $properties
     ) {
         $this->variantIdentifier = $variantIdentifier;
@@ -131,9 +131,9 @@ class NodeWasMoved implements EventInterface
     }
 
     /**
-     * @return string
+     * @return int
      */
-    public function getPosition(): string
+    public function getPosition(): int
     {
         return $this->position;
     }

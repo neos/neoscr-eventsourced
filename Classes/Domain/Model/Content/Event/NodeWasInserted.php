@@ -52,7 +52,7 @@ class NodeWasInserted implements EventInterface
     protected $path;
 
     /**
-     * @var string
+     * @var int
      */
     protected $position;
 
@@ -69,7 +69,7 @@ class NodeWasInserted implements EventInterface
      * @param string $nodeType
      * @param string $parentIdentifier
      * @param string $path
-     * @param string $position
+     * @param int $position
      * @param array $properties
      */
     public function __construct(
@@ -79,7 +79,7 @@ class NodeWasInserted implements EventInterface
         string $nodeType,
         string $parentIdentifier,
         string $path,
-        string $position,
+        int $position,
         array $properties
     ) {
         $this->variantIdentifier = $variantIdentifier;
@@ -142,9 +142,9 @@ class NodeWasInserted implements EventInterface
     }
 
     /**
-     * @return string
+     * @return int
      */
-    public function getPosition(): string
+    public function getPosition(): int
     {
         return $this->position;
     }
