@@ -1,0 +1,6 @@
+Neos:
+  Flow:
+    persistence:
+      doctrine:
+        eventSubscribers:
+          - 'Neos\ContentRepository\EventSourced\Aspect\EventZookeeper'
