@@ -13,13 +13,11 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
 
 use Neos\ContentRepository\Domain as ContentRepository;
 use Neos\Flow\Annotations as Flow;
-use Doctrine\ORM\Mapping as ORM;
 
 /**
  * General purpose Node read model
  *
  * @Flow\Entity
- * @ORM\Table(name="neos_contentrepository_projection_node")
  */
 class Node
 {
@@ -31,7 +29,6 @@ class Node
 
 
     /**
-     * @ORM\Id
      * @var string
      */
     public $identifierInGraph;
@@ -47,7 +44,6 @@ class Node
     public $subgraphIdentifier;
 
     /**
-     * @ORM\Column(type="flow_json_array")
      * @var array
      */
     public $properties = [];

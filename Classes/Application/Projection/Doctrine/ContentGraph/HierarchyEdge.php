@@ -13,30 +13,25 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
 
 use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\Flow\Annotations as Flow;
-use Doctrine\ORM\Mapping as ORM;
 
 /**
  * General purpose Hierarchy Edge read model
  *
  * @Flow\Entity
- * @ORM\Table(name="neos_contentrepository_projection_hierarchyedge")
  */
 class HierarchyEdge
 {
     /**
-     * @ORM\Id
      * @var string
      */
     public $parentNodesIdentifierInGraph;
 
     /**
-     * @ORM\Id
      * @var string
      */
     public $subgraphIdentifier;
 
     /**
-     * @ORM\Id
      * @var string
      */
     public $childNodesIdentifierInGraph;

@@ -17,10 +17,38 @@ use Neos\Flow\Annotations as Flow;
 /**
  * The doctrine node finder
  *
- * @method Node findOneByIdentifierInGraph(string $identifierInGraph)
- *
  * @Flow\Scope("singleton")
  */
 class NodeFinder extends AbstractDoctrineFinder
 {
+    /**
+     * @param string $identifierInGraph
+     * @return Node|null
+     */
+    public function findOneByIdentifierInGraph(string $identifierInGraph)
+    {
+        $query = $this->createQuery();
+        $connection = $query->getQueryBuilder()->getEntityManager()->getConnection();
+
+        $nodeData = $connection->executeQuery(
+            'SELECT n.* FROM neos_contentrepository_projection_node n 
+WHERE n.identifieringraph = :identifierInGraph',
+            [
+                'identifierInGraph' => $identifierInGraph,
+            ])->fetch();
+
+        return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
+    }
+
+    protected function mapRawDataToNode(array $nodeData): Node
+    {
+        $node = new Node();
+        $node->identifierInGraph = $nodeData['identifieringraph'];
+        $node->identifierInSubgraph = $nodeData['identifierinsubgraph'];
+        $node->subgraphIdentifier = $nodeData['subgraphidentifier'];
+        $node->properties = json_decode($nodeData['properties'], true);
+        $node->nodeTypeName = $nodeData['nodetypename'];
+
+        return $node;
+    }
 }
