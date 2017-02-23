@@ -32,6 +32,11 @@ class NodeVariantWasCreated extends AbstractDimensionAwareEvent
     protected $fallbackIdentifier;
 
     /**
+     * @var array
+     */
+    protected $properties;
+
+    /**
      * @var string
      */
     protected $strategy;
@@ -41,17 +46,20 @@ class NodeVariantWasCreated extends AbstractDimensionAwareEvent
      * @param string $variantIdentifier
      * @param string $fallbackIdentifier
      * @param array $contentDimensionValues
+     * @param array $properties
      * @param string $strategy
      */
     public function __construct(
         string $variantIdentifier,
         string $fallbackIdentifier,
         array $contentDimensionValues,
+        array $properties,
         string $strategy
     ) {
         parent::__construct($contentDimensionValues);
         $this->variantIdentifier = $variantIdentifier;
         $this->fallbackIdentifier = $fallbackIdentifier;
+        $this->properties = $properties;
         $this->strategy = $strategy;
     }
 
@@ -70,6 +78,14 @@ class NodeVariantWasCreated extends AbstractDimensionAwareEvent
     public function getFallbackIdentifier(): string
     {
         return $this->fallbackIdentifier;
+    }
+
+    /**
+     * @return array
+     */
+    public function getProperties(): array
+    {
+        return $this->properties;
     }
 
     /**
