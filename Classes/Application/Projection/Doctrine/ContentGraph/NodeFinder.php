@@ -40,6 +40,54 @@ WHERE n.identifieringraph = :identifierInGraph',
         return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
     }
 
+    /**
+     * @param string $subgraphIdentifier
+     * @param string $identifierInSubgraph
+     * @return Node|null
+     */
+    public function findInSubgraphByIdentifierInSubgraph(string $subgraphIdentifier, string $identifierInSubgraph)
+    {
+        $query = $this->createQuery();
+        $connection = $query->getQueryBuilder()->getEntityManager()->getConnection();
+
+        $nodeData = $connection->executeQuery(
+            'SELECT n.* FROM neos_contentrepository_projection_node n 
+INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
+WHERE n.identifierinsubgraph = :identifierInSubgraph AND h.subgraphidentifier = :subgraphIdentifier',
+            [
+                'identifierInSubgraph' => $identifierInSubgraph,
+                'subgraphIdentifier' => $subgraphIdentifier
+            ])->fetch();
+
+        return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
+    }
+
+    /**
+     * @param string $subgraphIdentifier
+     * @param string $parentIdentifierInGraph
+     * @return array|Node[]
+     */
+    public function findInSubgraphByParentIdentifierInGraph(string $subgraphIdentifier, string $parentIdentifierInGraph): array
+    {
+        $query = $this->createQuery();
+        $connection = $query->getQueryBuilder()->getEntityManager()->getConnection();
+
+        $result = [];
+        foreach ($connection->executeQuery(
+            'SELECT n.* FROM neos_contentrepository_projection_node n 
+INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
+WHERE h.parentnodesidentifieringraph = :parentNodesIdentifierInGraph AND h.subgraphidentifier = :subgraphIdentifier',
+            [
+                'parentNodesIdentifierInGraph' => $parentIdentifierInGraph,
+                'subgraphIdentifier' => $subgraphIdentifier
+            ])->fetchAll() as $nodeData) {
+
+            $result[] = $this->mapRawDataToNode($nodeData);
+        }
+
+        return $result;
+    }
+
     protected function mapRawDataToNode(array $nodeData): Node
     {
         $node = new Node();
