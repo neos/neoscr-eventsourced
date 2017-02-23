@@ -15,7 +15,9 @@ use Doctrine\Common\EventSubscriber;
 use Doctrine\Common\Persistence\Event\LifecycleEventArgs;
 use Doctrine\ORM\Events;
 use Neos\ContentRepository\Domain as ContentRepository;
+use Neos\ContentRepository\EventSourced\Application\Service\FallbackGraphService;
 use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
+use Neos\ContentRepository\EventSourced\Utility\SubgraphUtility;
 use Neos\EventSourcing\Event\EventPublisher;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Aop\JoinPointInterface;
@@ -49,6 +51,18 @@ class EventZookeeper implements EventSubscriber
      */
     protected $nodeDataRepository;
 
+    /**
+     * @Flow\Inject
+     * @var FallbackGraphService
+     */
+    protected $fallbackGraphService;
+
+    /**
+     * @Flow\Inject
+     * @var ContentRepository\Repository\WorkspaceRepository
+     */
+    protected $workspaceRepository;
+
 
     /**
      * @var ContentRepository\Model\NodeData
@@ -79,7 +93,6 @@ class EventZookeeper implements EventSubscriber
     {
         $nodeDataArray = $joinPoint->getMethodArgument('nodeData');
         /** @var ContentRepository\Model\NodeData $nodeData */
-        /* @todo this also may be a node variant created event */
         $nodeData = $this->nodeDataRepository->findByIdentifier($nodeDataArray['Persistence_Object_Identifier']);
 
         $this->publishNodeDataCreation($nodeData);
@@ -162,11 +175,38 @@ class EventZookeeper implements EventSubscriber
 
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
+        $subgraphIdentity = [
+            'editingSession' => $nodeData->getWorkspace()->getName()
+        ];
         $dimensionValues = [];
         foreach ($nodeData->getDimensionValues() as $dimensionName => $dimensionValue) {
+            $subgraphIdentity[$dimensionName] = reset($dimensionValue);
             $dimensionValues[$dimensionName] = reset($dimensionValue);
         }
-
+        $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
+        $subgraph = $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
+        foreach ($subgraph->getFallback() as $fallbackSubgraph) {
+            $strangeDimensionValues = $fallbackSubgraph->getDimensionValues();
+            unset($strangeDimensionValues['editingSession']);
+            array_walk($strangeDimensionValues, function(&$value) {
+                $value = [$value];
+            });
+            $fallbackNodeData = $this->nodeDataRepository->findOneByIdentifier(
+                $nodeData->getIdentifier(),
+                $nodeData->getWorkspace(),
+                $strangeDimensionValues
+            );
+            if ($fallbackNodeData) {
+                $this->eventPublisher->publish('neoscr-content', new Event\NodeVariantWasCreated(
+                    $this->persistenceManager->getIdentifierByObject($nodeData),
+                    $this->persistenceManager->getIdentifierByObject($fallbackNodeData),
+                    $dimensionValues,
+                    $nodeData->getProperties(),
+                    Event\NodeVariantWasCreated::STRATEGY_EMPTY
+                ));
+                return;
+            }
+        }
         $this->eventPublisher->publish('neoscr-content', new Event\NodeWasInserted(
             $this->persistenceManager->getIdentifierByObject($nodeData),
             $nodeData->getIdentifier(),
