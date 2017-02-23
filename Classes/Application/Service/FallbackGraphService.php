@@ -191,6 +191,23 @@ class FallbackGraphService
     }
 
     /**
+     * @param string $subgraphIdentifier
+     * @return array
+     */
+    public function determineConnectedSubgraphIdentifiers(string $subgraphIdentifier): array
+    {
+        $subgraph = $this->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
+        while ($subgraph->getFallback()) {
+            $subgraph = $subgraph->getFallback();
+        }
+        $connectedVariantIdentifiers = [$subgraph->getIdentityHash()];
+        foreach ($subgraph->getVariants() as $variantSubgraph) {
+            $connectedVariantIdentifiers[] = $variantSubgraph->getIdentityHash();
+        }
+        return $connectedVariantIdentifiers;
+    }
+
+    /**
      * @return IntraDimension\IntraDimensionalFallbackGraph
      * @api
      */
