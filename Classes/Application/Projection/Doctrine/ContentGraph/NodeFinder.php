@@ -11,31 +11,38 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
-use Neos\EventSourcing\Projection\Doctrine\AbstractDoctrineFinder;
+use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\ORM\EntityManager;
 use Neos\Flow\Annotations as Flow;
 
 /**
- * The doctrine node finder
+ * The Doctrine DBAL node finder
  *
  * @Flow\Scope("singleton")
  */
-class NodeFinder extends AbstractDoctrineFinder
+class NodeFinder
 {
     /**
+     * @Flow\Inject(lazy=FALSE)
+     * @var ObjectManager
+     */
+    protected $entityManager;
+
+
+    /**
      * @param string $identifierInGraph
+     * @param NodeFinderQueryConstraints $constraints
      * @return Node|null
      */
-    public function findOneByIdentifierInGraph(string $identifierInGraph)
+    public function findOneByIdentifierInGraph(string $identifierInGraph, NodeFinderQueryConstraints $constraints)
     {
-        $query = $this->createQuery();
-        $connection = $query->getQueryBuilder()->getEntityManager()->getConnection();
-
-        $nodeData = $connection->executeQuery(
-            'SELECT n.* FROM neos_contentrepository_projection_node n 
-WHERE n.identifieringraph = :identifierInGraph',
-            [
+        $nodeData = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT n.* FROM neos_contentrepository_projection_node n
+ WHERE identifieringraph = :identifierInGraph' . $constraints,
+            array_merge([
                 'identifierInGraph' => $identifierInGraph,
-            ])->fetch();
+            ], $constraints->__toArray())
+        )->fetch();
 
         return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
     }
@@ -43,21 +50,21 @@ WHERE n.identifieringraph = :identifierInGraph',
     /**
      * @param string $subgraphIdentifier
      * @param string $identifierInSubgraph
+     * @param NodeFinderQueryConstraints $constraints
      * @return Node|null
      */
-    public function findInSubgraphByIdentifierInSubgraph(string $subgraphIdentifier, string $identifierInSubgraph)
+    public function findInSubgraphByIdentifierInSubgraph(string $subgraphIdentifier, string $identifierInSubgraph, NodeFinderQueryConstraints $constraints)
     {
-        $query = $this->createQuery();
-        $connection = $query->getQueryBuilder()->getEntityManager()->getConnection();
-
-        $nodeData = $connection->executeQuery(
-            'SELECT n.* FROM neos_contentrepository_projection_node n 
-INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
-WHERE n.identifierinsubgraph = :identifierInSubgraph AND h.subgraphidentifier = :subgraphIdentifier',
-            [
+        $nodeData = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT n.* FROM neos_contentrepository_projection_node n
+ INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
+ WHERE n.identifierinsubgraph = :identifierInSubgraph
+ AND h.subgraphidentifier = :subgraphIdentifier' . $constraints,
+            array_merge([
                 'identifierInSubgraph' => $identifierInSubgraph,
                 'subgraphIdentifier' => $subgraphIdentifier
-            ])->fetch();
+            ], $constraints->__toArray())
+        )->fetch();
 
         return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
     }
@@ -67,35 +74,51 @@ WHERE n.identifierinsubgraph = :identifierInSubgraph AND h.subgraphidentifier = 
      * @param string $parentIdentifierInGraph
      * @return array|Node[]
      */
-    public function findInSubgraphByParentIdentifierInGraph(string $subgraphIdentifier, string $parentIdentifierInGraph): array
+    public function findInSubgraphByParentIdentifierInGraph(string $subgraphIdentifier, string $parentIdentifierInGraph, NodeFinderQueryConstraints $constraints): array
     {
-        $query = $this->createQuery();
-        $connection = $query->getQueryBuilder()->getEntityManager()->getConnection();
-
         $result = [];
-        foreach ($connection->executeQuery(
-            'SELECT n.* FROM neos_contentrepository_projection_node n 
-INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
-WHERE h.parentnodesidentifieringraph = :parentNodesIdentifierInGraph AND h.subgraphidentifier = :subgraphIdentifier',
-            [
+        foreach ($this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT n.* FROM neos_contentrepository_projection_node n
+ INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
+ WHERE h.parentnodesidentifieringraph = :parentNodesIdentifierInGraph
+ AND h.subgraphidentifier = :subgraphIdentifier' . $constraints . '
+ ORDER BY h.index',
+            array_merge([
                 'parentNodesIdentifierInGraph' => $parentIdentifierInGraph,
                 'subgraphIdentifier' => $subgraphIdentifier
-            ])->fetchAll() as $nodeData) {
-
+            ], $constraints->__toArray())
+        )->fetchAll() as $nodeData) {
             $result[] = $this->mapRawDataToNode($nodeData);
         }
 
         return $result;
     }
 
+    public function findInSubgraphByNodeTypeNames(string $subgraphIdentifier, array $nodeTypeNames)
+    {
+
+    }
+
+
+    /**
+     * @return EntityManager
+     */
+    protected function getEntityManager(): EntityManager
+    {
+        return $this->entityManager;
+    }
+
     protected function mapRawDataToNode(array $nodeData): Node
     {
         $node = new Node();
+
         $node->identifierInGraph = $nodeData['identifieringraph'];
         $node->identifierInSubgraph = $nodeData['identifierinsubgraph'];
         $node->subgraphIdentifier = $nodeData['subgraphidentifier'];
-        $node->properties = json_decode($nodeData['properties'], true);
+        $node->properties = new PropertyCollection(json_decode($nodeData['properties'], true));
         $node->nodeTypeName = $nodeData['nodetypename'];
+        $node->name = $nodeData['name'];
+        $node->removed = (bool)$nodeData['removed'];
 
         return $node;
     }

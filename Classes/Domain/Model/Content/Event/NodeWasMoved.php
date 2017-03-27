@@ -18,12 +18,16 @@ use Neos\Flow\Annotations as Flow;
  */
 class NodeWasMoved extends AbstractDimensionAwareEvent
 {
+    const STRATEGY_CASCADE_TO_CHILD_VARIANTS = 'cascadeToChildVariants';
+    const STRATEGY_CASCADE_TO_ALL_VARIANTS = 'cascadeToAllVariants';
+
     /**
      * @var string
      */
     protected $variantIdentifier;
 
     /**
+     * @todo Do we even need this?
      * @var string
      */
     protected $identifier;
@@ -31,57 +35,41 @@ class NodeWasMoved extends AbstractDimensionAwareEvent
     /**
      * @var string
      */
-    protected $nodeType;
+    protected $newParentVariantIdentifier;
 
     /**
      * @var string
      */
-    protected $parentIdentifier;
+    protected $newOlderSiblingVariantIdentifier;
 
     /**
      * @var string
      */
-    protected $path;
-
-    /**
-     * @var int
-     */
-    protected $position;
-
-    /**
-     * @var array
-     */
-    protected $properties;
+    protected $strategy;
 
 
     /**
      * @param string $variantIdentifier
      * @param string $identifier
      * @param array $contentDimensionValues
-     * @param string $nodeType
-     * @param string $parentIdentifier
-     * @param string $path
-     * @param int $position
-     * @param array $properties
+     * @param string $newParentVariantIdentifier
+     * @param string $newOlderSiblingVariantIdentifier
+     * @param string $strategy
      */
     public function __construct(
         string $variantIdentifier,
         string $identifier,
         array $contentDimensionValues,
-        string $nodeType,
-        string $parentIdentifier,
-        string $path,
-        int $position,
-        array $properties
+        string $newParentVariantIdentifier,
+        string $newOlderSiblingVariantIdentifier,
+        string $strategy
     ) {
         parent::__construct($contentDimensionValues);
         $this->variantIdentifier = $variantIdentifier;
         $this->identifier = $identifier;
-        $this->nodeType = $nodeType;
-        $this->parentIdentifier = $parentIdentifier;
-        $this->path = $path;
-        $this->position = $position;
-        $this->properties = $properties;
+        $this->newParentVariantIdentifier = $newParentVariantIdentifier;
+        $this->newOlderSiblingVariantIdentifier = $newOlderSiblingVariantIdentifier;
+        $this->strategy = $strategy;
     }
 
 
@@ -104,40 +92,24 @@ class NodeWasMoved extends AbstractDimensionAwareEvent
     /**
      * @return string
      */
-    public function getNodeType(): string
+    public function getNewParentVariantIdentifier(): string
     {
-        return $this->nodeType;
+        return $this->newParentVariantIdentifier;
     }
 
     /**
      * @return string
      */
-    public function getParentIdentifier(): string
+    public function getNewOlderSiblingVariantIdentifier(): string
     {
-        return $this->parentIdentifier;
+        return $this->newOlderSiblingVariantIdentifier;
     }
 
     /**
      * @return string
      */
-    public function getPath(): string
+    public function getStrategy(): string
     {
-        return $this->path;
-    }
-
-    /**
-     * @return int
-     */
-    public function getPosition(): int
-    {
-        return $this->position;
-    }
-
-    /**
-     * @return array
-     */
-    public function getProperties(): array
-    {
-        return $this->properties;
+        return $this->strategy;
     }
 }

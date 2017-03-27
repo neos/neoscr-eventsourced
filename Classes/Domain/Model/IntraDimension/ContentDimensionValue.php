@@ -31,7 +31,7 @@ class ContentDimensionValue
     /**
      * @var array
      */
-    protected $variants;
+    protected $variants = [];
 
     /**
      * @var int
@@ -103,5 +103,10 @@ class ContentDimensionValue
         }
 
         return $fallbackDepth;
+    }
+
+    public function __toString(): string
+    {
+        return $this->value;
     }
 }

@@ -42,12 +42,7 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
     /**
      * @var string
      */
-    protected $path;
-
-    /**
-     * @var int
-     */
-    protected $position;
+    protected $elderSiblingIdentifier;
 
     /**
      * @var array
@@ -61,8 +56,7 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
      * @param array $contentDimensionValues
      * @param string $nodeType
      * @param string $parentIdentifier
-     * @param string $path
-     * @param int $position
+     * @param string $elderSiblingIdentifier
      * @param array $properties
      */
     public function __construct(
@@ -71,8 +65,7 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
         array $contentDimensionValues,
         string $nodeType,
         string $parentIdentifier,
-        string $path,
-        int $position,
+        string $elderSiblingIdentifier,
         array $properties
     ) {
         parent::__construct($contentDimensionValues);
@@ -80,8 +73,7 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
         $this->identifier = $identifier;
         $this->nodeType = $nodeType;
         $this->parentIdentifier = $parentIdentifier;
-        $this->path = $path;
-        $this->position = $position;
+        $this->elderSiblingIdentifier = $elderSiblingIdentifier;
         $this->properties = $properties;
     }
 
@@ -121,17 +113,9 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
     /**
      * @return string
      */
-    public function getPath(): string
+    public function getElderSiblingIdentifier(): string
     {
-        return $this->path;
-    }
-
-    /**
-     * @return int
-     */
-    public function getPosition(): int
-    {
-        return $this->position;
+        return $this->elderSiblingIdentifier;
     }
 
     /**

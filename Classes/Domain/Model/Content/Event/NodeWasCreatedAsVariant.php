@@ -16,7 +16,7 @@ use Neos\Flow\Annotations as Flow;
 /**
  * A node variant was created
  */
-class NodeVariantWasCreated extends AbstractDimensionAwareEvent
+class NodeWasCreatedAsVariant extends AbstractDimensionAwareEvent
 {
     const STRATEGY_COPY = 'copy';
     const STRATEGY_EMPTY = 'empty';

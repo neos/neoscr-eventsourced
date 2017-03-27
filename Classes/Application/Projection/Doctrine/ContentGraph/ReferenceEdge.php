@@ -13,28 +13,39 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
 
 use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\Flow\Annotations as Flow;
+use Doctrine\ORM\Mapping as ORM;
 
 /**
- * General purpose Hierarchy Edge read model
+ * General purpose Reference Edge read model
  *
  * @Flow\Entity
+ * @ORM\Table(name="neos_contentrepository_projection_referenceedge")
  */
-class HierarchyEdge
+class ReferenceEdge
 {
     /**
+     * @ORM\Id
      * @var string
      */
-    public $parentNodesIdentifierInGraph;
+    public $referencingNodesIdentifierInGraph;
 
     /**
+     * @ORM\Id
+     * @var string
+     */
+    public $referencedNodesIdentifierInGraph;
+
+    /**
+     * @ORM\Id
      * @var string
      */
     public $subgraphIdentifier;
 
     /**
+     * @ORM\Id
      * @var string
      */
-    public $childNodesIdentifierInGraph;
+    public $name;
 
     /**
      * @var int
@@ -42,10 +53,11 @@ class HierarchyEdge
     public $position;
 
 
-    public function connect(Node $parentNode, Node $childNode, ContentSubgraph $contentSubgraph)
+    public function connect(Node $referencingNode, Node $referencedNode, string $subgraphIdentifier, string $name)
     {
-        $this->parentNodesIdentifierInGraph = $parentNode->identifierInGraph;
-        $this->subgraphIdentifier = $contentSubgraph->getIdentityHash();
-        $this->childNodesIdentifierInGraph = $childNode->identifierInGraph;
+        $this->referencingNodesIdentifierInGraph = $referencingNode->identifierInGraph;
+        $this->referencedNodesIdentifierInGraph = $referencedNode->identifierInGraph;
+        $this->subgraphIdentifier = $subgraphIdentifier;
+        $this->name = $name;
     }
 }

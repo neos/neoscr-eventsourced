@@ -16,8 +16,6 @@ use Neos\Flow\Annotations as Flow;
 
 /**
  * General purpose Node read model
- *
- * @Flow\Entity
  */
 class Node
 {
@@ -44,9 +42,19 @@ class Node
     public $subgraphIdentifier;
 
     /**
-     * @var array
+     * @var string
      */
-    public $properties = [];
+    public $name;
+
+    /**
+     * @var bool
+     */
+    public $removed = false;
+
+    /**
+     * @var PropertyCollection
+     */
+    public $properties;
 
     /**
      * @var string

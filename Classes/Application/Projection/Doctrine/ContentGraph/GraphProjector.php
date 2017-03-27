@@ -39,6 +39,12 @@ class GraphProjector extends AbstractDoctrineProjector
 
     /**
      * @Flow\Inject
+     * @var ReferenceEdgeFinder
+     */
+    protected $referenceEdgeFinder;
+
+    /**
+     * @Flow\Inject
      * @var FallbackGraphService
      */
     protected $fallbackGraphService;
@@ -65,15 +71,15 @@ class GraphProjector extends AbstractDoctrineProjector
         $node->identifierInSubgraph = $event->getIdentifier();
         $node->subgraphIdentifier = $subgraphIdentifier;
         $node->nodeTypeName = $event->getNodeType();
+        $node->properties = $event->getProperties();
         $this->add($node);
 
-        $parentNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getParentIdentifier());
+        $parentNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getParentIdentifier(), new NodeFinderQueryConstraints());
         $subgraph = $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
 
         $hierarchyEdge = new HierarchyEdge();
         $hierarchyEdge->connect($parentNode, $node, $subgraph);
-        $hierarchyEdge->name = $event->getPath();
-        $hierarchyEdge->position = $event->getPosition();
+        #$hierarchyEdge->position = $event->getPosition();
         $this->add($hierarchyEdge);
 
         foreach ($subgraph->getVariants() as $variantSubgraph) {
@@ -91,7 +97,7 @@ class GraphProjector extends AbstractDoctrineProjector
     {
         $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
 
-        $fallbackNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getFallbackIdentifier());
+        $fallbackNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getFallbackIdentifier(), new NodeFinderQueryConstraints());
 
         $nodeVariant = new Node();
         $nodeVariant->identifierInGraph = $event->getVariantIdentifier();
@@ -101,25 +107,28 @@ class GraphProjector extends AbstractDoctrineProjector
         if ($event->getStrategy() === Event\NodeVariantWasCreated::STRATEGY_COPY) {
             $nodeVariant->properties = $fallbackNode->properties;
         }
+        $nodeVariant->properties = Arrays::arrayMergeRecursiveOverrule($nodeVariant->properties, $event->getProperties());
         $this->add($nodeVariant);
 
         $variantSubgraphIdentifiers = $this->fallbackGraphService->determineAffectedVariantSubgraphIdentifiers($subgraphIdentifier);
 
-        foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($fallbackNode, $variantSubgraphIdentifiers) as $variantEdge) {
+        foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($fallbackNode->identifierInGraph, $variantSubgraphIdentifiers) as $variantEdge) {
             $variantEdge->childNodesIdentifierInGraph = $nodeVariant->identifierInGraph;
             $this->update($variantEdge);
         }
-        foreach ($this->hierarchyEdgeFinder->findOutboundByNodeAndSubgraphs($fallbackNode, $variantSubgraphIdentifiers) as $variantEdge) {
+        foreach ($this->hierarchyEdgeFinder->findOutboundByNodeAndSubgraphs($fallbackNode->identifierInGraph, $variantSubgraphIdentifiers) as $variantEdge) {
             $variantEdge->parentNodesIdentifierInGraph = $nodeVariant->identifierInGraph;
             $this->update($variantEdge);
         }
+
+        // @todo handle reference edges, also respect strategy
 
         $this->projectionPersistenceManager->persistAll();
     }
 
     public function whenPropertiesWereUpdated(Event\PropertiesWereUpdated $event)
     {
-        $node = $this->nodeFinder->findOneByIdentifierInGraph($event->getVariantIdentifier());
+        $node = $this->nodeFinder->findOneByIdentifierInGraph($event->getVariantIdentifier(), new NodeFinderQueryConstraints());
         $node->properties = Arrays::arrayMergeRecursiveOverrule($node->properties, $event->getProperties());
         $this->update($node);
 
@@ -129,10 +138,16 @@ class GraphProjector extends AbstractDoctrineProjector
     public function whenNodeWasMoved(Event\NodeWasMoved $event)
     {
         $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
-        $variantSubgraphIdentifiers = $this->fallbackGraphService->determineAffectedVariantSubgraphIdentifiers($subgraphIdentifier);
+        $affectedSubgraphIdentifiers = $event->getStrategy() === Event\NodeWasMoved::STRATEGY_CASCADE_TO_ALL_VARIANTS
+            ? $this->fallbackGraphService->determineAffectedVariantSubgraphIdentifiers($subgraphIdentifier)
+            : $this->fallbackGraphService->determineConnectedSubgraphIdentifiers($subgraphIdentifier);
 
-        foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($event->getVariantIdentifier(), $variantSubgraphIdentifiers) as $variantEdge) {
-            $variantEdge->parentNodesIdentifierInGraph = $event->getParentIdentifier();
+        foreach ($this->hierarchyEdgeFinder->findInboundByNodeAndSubgraphs($event->getVariantIdentifier(), $affectedSubgraphIdentifiers) as $variantEdge) {
+            if ($event->getNewParentVariantIdentifier()) {
+                $variantEdge->parentNodesIdentifierInGraph = $event->getNewParentVariantIdentifier();
+            }
+            // @todo: handle new older sibling
+
             $this->update($variantEdge);
         }
 
@@ -156,8 +171,32 @@ class GraphProjector extends AbstractDoctrineProjector
             }
         }
 
+        // @todo handle reference edges
+
         $this->projectionPersistenceManager->persistAll();
     }
+
+    public function whenNodeReferenceWasAdded(Event\NodeReferenceWasAdded $event)
+    {
+        $referencingNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getReferencingNodeIdentifier());
+        $referencedNode = $this->nodeFinder->findOneByIdentifierInGraph($event->getReferencedNodeIdentifier());
+
+        $affectedSubgraphIdentifiers = [];
+        // Which variant reference edges are created alongside is determined by what subgraph this node belongs to
+        // @todo define a more fitting method in a service for this
+        $inboundHierarchyEdges = $this->hierarchyEdgeFinder->findByChildNodeIdentifierInGraph($event->getReferencingNodeIdentifier());
+
+        foreach ($inboundHierarchyEdges as $hierarchyEdge) {
+            $referencedNodeVariant = $this->nodeFinder->findInSubgraphByIdentifierInSubgraph($referencingNode->identifierInSubgraph, $hierarchyEdge->subgraphIdentifier);
+            if ($referencedNodeVariant) {
+                $referenceEdge = new ReferenceEdge();
+                $referenceEdge->connect($referencingNode, $referencedNode, $hierarchyEdge->name, $event->getReferenceName());
+                // @todo fetch position among siblings
+                // @todo implement auto-triggering of position recalculation
+            }
+        }
+    }
+
 
     protected function extractSubgraphIdentifierFromEvent(Event\AbstractDimensionAwareEvent $event): string
     {

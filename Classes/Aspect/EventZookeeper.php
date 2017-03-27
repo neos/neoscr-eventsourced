@@ -128,6 +128,7 @@ class EventZookeeper implements EventSubscriber
     {
         if ($event->getObject() instanceof ContentRepository\Model\NodeData) {
             /** @var ContentRepository\Model\NodeData $nodeData */
+            /*
             $nodeData = $event->getObject();
 
             if ($nodeData->getPath() === '/sites') {
@@ -138,7 +139,7 @@ class EventZookeeper implements EventSubscriber
                 ));
             } else {
                 $this->publishNodeDataCreation($nodeData);
-            }
+            }*/
         }
     }
 
@@ -175,6 +176,7 @@ class EventZookeeper implements EventSubscriber
 
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
+        /*
         $subgraphIdentity = [
             'editingSession' => $nodeData->getWorkspace()->getName()
         ];
@@ -217,5 +219,6 @@ class EventZookeeper implements EventSubscriber
             $nodeData->getIndex(),
             $nodeData->getProperties()
         ));
+        */
     }
 }
