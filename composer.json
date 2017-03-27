@@ -4,7 +4,7 @@
   "description": "Development prototype for the event-sourced rewrite of the Neos Content Repository",
   "license": "GPL-3.0+",
   "require": {
-    "neos/content-repository": "~3.0",
+    "neos/content-repository": "dev-master",
     "neos/event-sourcing": "dev-master"
   },
   "autoload": {
