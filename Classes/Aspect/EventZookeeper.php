@@ -200,24 +200,35 @@ class EventZookeeper implements EventSubscriber
             }
         }
 
-        $this->eventPublisher->publish('neoscr-content', new Event\NodeWasInserted(
-            $this->persistenceManager->getIdentifierByObject($nodeData),
-            $nodeData->getIdentifier(),
-            $subgraph->getDimensionValues(),
-            $nodeData->getNodeType()->getName(),
-            $this->persistenceManager->getIdentifierByObject($this->findParent($nodeData, $subgraph)),
-            $this->findElderSibling($nodeData, $subgraph) ? $this->persistenceManager->getIdentifierByObject($this->findElderSibling($nodeData, $subgraph)) : null,
-            $nodeData->getName(),
-            $nodeData->getProperties()
-        ));
+        $parent = $this->findParent($nodeData, $subgraph);
+        if ($parent) {
+            $this->eventPublisher->publish('neoscr-content', new Event\NodeWasInserted(
+                $this->persistenceManager->getIdentifierByObject($nodeData),
+                $nodeData->getIdentifier(),
+                $subgraph->getDimensionValues(),
+                $nodeData->getNodeType()->getName(),
+                $this->persistenceManager->getIdentifierByObject($this->findParent($nodeData, $subgraph)),
+                $this->findElderSibling($nodeData, $subgraph) ? $this->persistenceManager->getIdentifierByObject($this->findElderSibling($nodeData, $subgraph)) : null,
+                $nodeData->getName(),
+                $nodeData->getProperties()
+            ));
+        } else {
+            return; // disconnected node, will be ignored
+        }
     }
 
+    /**
+     * @param ContentRepository\Model\NodeData $nodeData
+     * @param ContentSubgraph $subgraph
+     * @return ContentRepository\Model\NodeData|null
+     */
     protected function findElderSibling(ContentRepository\Model\NodeData $nodeData, ContentSubgraph $subgraph)
     {
         $priorities = $this->getLegacyFallbackPriorities($subgraph);
 
         $query = $this->nodeDataRepository->createQuery();
-        return $query->matching($query->logicalAnd([
+        /** @var ContentRepository\Model\NodeData $result */
+        $result = $query->matching($query->logicalAnd([
             $query->equals('parentPathHash', md5($nodeData->getParentPath())),
             $query->lessThan('index', $nodeData->getIndex()),
             $query->equals('workspace', $nodeData->getWorkspace()->getName()),
@@ -226,9 +237,16 @@ class EventZookeeper implements EventSubscriber
             'index' => QueryInterface::ORDER_DESCENDING
         ])->execute()
             ->getFirst();
+
+        return $result;
     }
 
-    protected function findParent(ContentRepository\Model\NodeData $nodeData, ContentSubgraph $subgraph): ContentRepository\Model\NodeData
+    /**
+     * @param ContentRepository\Model\NodeData $nodeData
+     * @param ContentSubgraph $subgraph
+     * @return ContentRepository\Model\NodeData|null
+     */
+    protected function findParent(ContentRepository\Model\NodeData $nodeData, ContentSubgraph $subgraph)
     {
         if ($nodeData->getParentPath() === '/sites') {
             $query = $this->nodeDataRepository->createQuery();
@@ -254,7 +272,7 @@ class EventZookeeper implements EventSubscriber
             return $priorities[$nodeDataA->getDimensionsHash()] <=> $priorities[$nodeDataB->getDimensionsHash()];
         });
 
-        return reset($parentCandidates);
+        return reset($parentCandidates) ?: null;
     }
 
     protected function getLegacyFallbackPriorities(ContentSubgraph $subgraph): array
