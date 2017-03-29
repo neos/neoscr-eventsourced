@@ -15,14 +15,12 @@ use Doctrine\ORM\EntityManager;
 use Neos\ContentRepository\EventSourced\Application\Persistence\DoctrinePersistableInterface;
 use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\Flow\Annotations as Flow;
-use Doctrine\ORM\Mapping as ORM;
 
 /**
  * General purpose Hierarchy Edge read model
  */
 class HierarchyEdge implements DoctrinePersistableInterface
 {
-
     /**
      * @var string
      */
@@ -76,7 +74,8 @@ class HierarchyEdge implements DoctrinePersistableInterface
             'parentNodesIdentifierInGraph' => $this->parentNodesIdentifierInGraph,
             'subgraphIdentifier' => $this->subgraphIdentifier,
             'childNodesIdentifierInGraph' => $this->childNodesIdentifierInGraph,
-            'position' => $this->position
+            'position' => $this->position,
+            'name' => $this->name
         ];
     }
 

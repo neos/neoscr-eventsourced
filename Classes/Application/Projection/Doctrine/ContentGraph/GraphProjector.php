@@ -95,6 +95,7 @@ class GraphProjector extends AbstractBaseProjector
             $subgraph = $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
 
             $hierarchyEdge = new HierarchyEdge();
+            $hierarchyEdge->name = $event->getPath();
             $hierarchyEdge->connect($parentNode, $node, $subgraph);
             $subgraphsForRecalculation[$subgraphIdentifier] = $this->assignPositionToHierarchyEdge($hierarchyEdge, $event->getElderSiblingIdentifier());
             $this->add($hierarchyEdge);

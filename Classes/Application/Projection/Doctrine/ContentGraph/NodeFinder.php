@@ -103,7 +103,6 @@ class NodeFinder extends AbstractReadModelFinder
         $node->subgraphIdentifier = $entityData['subgraphidentifier'];
         $node->properties = new PropertyCollection(json_decode($entityData['properties'], true));
         $node->nodeTypeName = $entityData['nodetypename'];
-        $node->removed = (bool)$entityData['removed'];
 
         return $node;
     }

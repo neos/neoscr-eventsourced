@@ -183,6 +183,8 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
         $edge->parentNodesIdentifierInGraph = $entityData['parentnodesidentifieringraph'];
         $edge->subgraphIdentifier = $entityData['subgraphidentifier'];
         $edge->childNodesIdentifierInGraph = $entityData['childnodesidentifieringraph'];
+        $edge->name = $entityData['name'];
+        $edge->position = $entityData['position'];
 
         return $edge;
     }

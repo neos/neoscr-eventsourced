@@ -43,11 +43,6 @@ class Node implements DoctrinePersistableInterface
     public $subgraphIdentifier;
 
     /**
-     * @var bool
-     */
-    public $removed = false;
-
-    /**
      * @var PropertyCollection
      */
     public $properties;
@@ -87,8 +82,6 @@ class Node implements DoctrinePersistableInterface
             'identifierInGraph' => $this->identifierInGraph,
             'identifierInSubgraph' => $this->identifierInSubgraph,
             'subgraphIdentifier' => $this->subgraphIdentifier,
-            'name' => $this->name,
-            'removed' => $this->removed ? 1 : 0,
             'properties' => $this->properties->serialize($entityManager),
             'nodeTypeName' => $this->nodeTypeName
         ];

@@ -313,6 +313,7 @@ class EventZookeeper implements EventSubscriber
         foreach ($nodeData->getDimensionValues() as $dimensionName => $dimensionValue) {
             $subgraphIdentity[$dimensionName] = reset($dimensionValue);
         }
+
         $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
 
         return $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
