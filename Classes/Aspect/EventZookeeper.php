@@ -15,8 +15,10 @@ use Doctrine\Common\EventSubscriber;
 use Doctrine\Common\Persistence\Event\LifecycleEventArgs;
 use Doctrine\ORM\Events;
 use Neos\ContentRepository\Domain as ContentRepository;
+use Neos\ContentRepository\Domain\Model\NodeInterface;
 use Neos\ContentRepository\EventSourced\Application\Service\FallbackGraphService;
 use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
+use Neos\ContentRepository\EventSourced\Package;
 use Neos\ContentRepository\EventSourced\Utility\SubgraphUtility;
 use Neos\EventSourcing\Event\EventPublisher;
 use Neos\Flow\Annotations as Flow;
@@ -132,7 +134,7 @@ class EventZookeeper implements EventSubscriber
             if ($nodeData->getPath() === '/') {
                 return;
             } elseif ($nodeData->getPath() === '/sites') {
-                $this->eventPublisher->publish('neoscr-content', new Event\SystemNodeWasInserted(
+                $this->eventPublisher->publish(Package::CR_EVENT_STREAM, new Event\SystemNodeWasInserted(
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $nodeData->getIdentifier(),
                     'Neos.Neos:Sites'
@@ -174,6 +176,24 @@ class EventZookeeper implements EventSubscriber
         }
     }
 
+    /**
+     * @param NodeInterface $node
+     * @param string $propertyName
+     * @param string $oldValue
+     * @param string $newValue
+     * @throws \Exception
+     */
+    public function onNodePropertyChanged(NodeInterface $node, $propertyName, $oldValue, $newValue)
+    {
+        $nodeData = $node->getNodeData();
+
+        $this->eventPublisher->publish(Package::CR_EVENT_STREAM, new Event\PropertiesWereUpdated(
+            $this->persistenceManager->getIdentifierByObject($nodeData),
+            $nodeData->getIdentifier(),
+            [$propertyName => $newValue]
+        ));
+    }
+
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
         $subgraphIdentity = [
@@ -198,7 +218,7 @@ class EventZookeeper implements EventSubscriber
                 $strangeDimensionValues
             );
             if ($fallbackNodeData) {
-                $this->eventPublisher->publish('neoscr-content', new Event\NodeWasCreatedAsVariant(
+                $this->eventPublisher->publish(Package::CR_EVENT_STREAM, new Event\NodeWasCreatedAsVariant(
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $this->persistenceManager->getIdentifierByObject($fallbackNodeData),
                     $dimensionValues,
@@ -208,7 +228,7 @@ class EventZookeeper implements EventSubscriber
                 return;
             }
         }
-        $this->eventPublisher->publish('neoscr-content', new Event\NodeWasInserted(
+        $this->eventPublisher->publish(Package::CR_EVENT_STREAM, new Event\NodeWasInserted(
             $this->persistenceManager->getIdentifierByObject($nodeData),
             $nodeData->getIdentifier(),
             $dimensionValues,
