@@ -70,9 +70,7 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
      */
     public function findByChildNodeIdentifierInGraph(string $childNodesIdentifierInGraph): array
     {
-        $result = [];
-
-        $edgeRecords = $this->getEntityManager()->getConnection()->executeQuery(
+        $queryResult = $this->getEntityManager()->getConnection()->executeQuery(
             'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
  WHERE childnodesidentifieringraph = :childNodesIdentifierInGraph',
             [
@@ -80,9 +78,9 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
             ]
         )->fetchAll();
 
-        foreach ($edgeRecords as $edgeRecord) {
-            $result[] = $this->mapRawDataToEdge($edgeRecord);
-        }
+        $result = array_map(function ($edgeData) {
+            return $this->mapRawDataToEntity($edgeData);
+        }, $queryResult);
 
         return $result;
     }
@@ -101,7 +99,7 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
             ]
         )->fetch();
 
-        return $edgeRecord ? $this->mapRawDataToEdge($edgeRecord) : null;
+        return $edgeRecord ? $this->mapRawDataToEntity($edgeRecord) : null;
     }
 
     /**
@@ -121,7 +119,7 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
             ]
         )->fetch();
 
-        return $edgeRecord ? $this->mapRawDataToEdge($edgeRecord) : null;
+        return !is_null($edgeRecord['minimalPosition']) ? $this->mapRawDataToEntity($edgeRecord) : null;
     }
 
     /**
@@ -144,7 +142,7 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
             ]
         )->fetch();
 
-        return $edgeRecord ? $this->mapRawDataToEdge($edgeRecord) : null;
+        return !is_null($edgeRecord['minimalPosition']) ? $this->mapRawDataToEntity($edgeRecord) : null;
     }
 
     /**
@@ -154,9 +152,7 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
      */
     public function findOrderedOutboundByParentNodeAndSubgraph(string $parentNodesIdentifierInGraph, string $subgraphIdentifier): array
     {
-        $result = [];
-
-        $edgeRecords = $this->getEntityManager()->getConnection()->executeQuery(
+        $queryResult = $this->getEntityManager()->getConnection()->executeQuery(
             'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
  WHERE parentnodesidentifieringraph = :parentNodesIdentifierInGraph
  AND subgraphIdentifier = :subgraphIdentifier
@@ -167,9 +163,9 @@ class HierarchyEdgeFinder extends AbstractReadModelFinder
             ]
         )->fetchAll();
 
-        foreach ($edgeRecords as $edgeRecord) {
-            $result[] = $this->mapRawDataToEdge($edgeRecord);
-        }
+        $result = array_map(function ($edgeData) {
+            return $this->mapRawDataToEntity($edgeData);
+        }, $queryResult);
 
         return $result;
     }
