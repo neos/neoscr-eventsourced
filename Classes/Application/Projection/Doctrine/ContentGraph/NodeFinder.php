@@ -11,24 +11,14 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
-use Doctrine\Common\Persistence\ObjectManager;
-use Doctrine\ORM\EntityManager;
+use Neos\ContentRepository\EventSourced\Application\Persistence\AbstractReadModelFinder;
 use Neos\Flow\Annotations as Flow;
 
 /**
- * The Doctrine DBAL node finder
- *
  * @Flow\Scope("singleton")
  */
-class NodeFinder
+class NodeFinder extends AbstractReadModelFinder
 {
-    /**
-     * @Flow\Inject(lazy=FALSE)
-     * @var ObjectManager
-     */
-    protected $entityManager;
-
-
     /**
      * @param string $identifierInGraph
      * @param NodeFinderQueryConstraints $constraints
@@ -37,14 +27,14 @@ class NodeFinder
     public function findOneByIdentifierInGraph(string $identifierInGraph, NodeFinderQueryConstraints $constraints)
     {
         $nodeData = $this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT n.* FROM neos_contentrepository_projection_node n
+            'SELECT n.* FROM ' . $this->getReadModelTableName() . ' n
  WHERE identifieringraph = :identifierInGraph' . $constraints,
             array_merge([
                 'identifierInGraph' => $identifierInGraph,
             ], $constraints->__toArray())
         )->fetch();
 
-        return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
+        return $nodeData ? $this->mapRawDataToEntity($nodeData) : null;
     }
 
     /**
@@ -56,7 +46,7 @@ class NodeFinder
     public function findInSubgraphByIdentifierInSubgraph(string $subgraphIdentifier, string $identifierInSubgraph, NodeFinderQueryConstraints $constraints)
     {
         $nodeData = $this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT n.* FROM neos_contentrepository_projection_node n
+            'SELECT n.* FROM ' . $this->getReadModelTableName() . ' n
  INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
  WHERE n.identifierinsubgraph = :identifierInSubgraph
  AND h.subgraphidentifier = :subgraphIdentifier' . $constraints,
@@ -66,7 +56,7 @@ class NodeFinder
             ], $constraints->__toArray())
         )->fetch();
 
-        return $nodeData ? $this->mapRawDataToNode($nodeData) : null;
+        return $nodeData ? $this->mapRawDataToEntity($nodeData) : null;
     }
 
     /**
@@ -78,7 +68,7 @@ class NodeFinder
     {
         $result = [];
         foreach ($this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT n.* FROM neos_contentrepository_projection_node n
+            'SELECT n.* FROM ' . $this->getReadModelTableName() .' n
  INNER JOIN neos_contentrepository_projection_hierarchyedge h ON h.childnodesidentifieringraph = n.identifieringraph
  WHERE h.parentnodesidentifieringraph = :parentNodesIdentifierInGraph
  AND h.subgraphidentifier = :subgraphIdentifier' . $constraints . '
@@ -88,7 +78,7 @@ class NodeFinder
                 'subgraphIdentifier' => $subgraphIdentifier
             ], $constraints->__toArray())
         )->fetchAll() as $nodeData) {
-            $result[] = $this->mapRawDataToNode($nodeData);
+            $result[] = $this->mapRawDataToEntity($nodeData);
         }
 
         return $result;
@@ -99,26 +89,22 @@ class NodeFinder
 
     }
 
-
-    /**
-     * @return EntityManager
-     */
-    protected function getEntityManager(): EntityManager
+    protected function getReadModelTableName()
     {
-        return $this->entityManager;
+        return Node::getTableName();
     }
 
-    protected function mapRawDataToNode(array $nodeData): Node
+    protected function mapRawDataToEntity(array $entityData)
     {
         $node = new Node();
 
-        $node->identifierInGraph = $nodeData['identifieringraph'];
-        $node->identifierInSubgraph = $nodeData['identifierinsubgraph'];
-        $node->subgraphIdentifier = $nodeData['subgraphidentifier'];
-        $node->properties = new PropertyCollection(json_decode($nodeData['properties'], true));
-        $node->nodeTypeName = $nodeData['nodetypename'];
-        $node->name = $nodeData['name'];
-        $node->removed = (bool)$nodeData['removed'];
+        $node->identifierInGraph = $entityData['identifieringraph'];
+        $node->identifierInSubgraph = $entityData['identifierinsubgraph'];
+        $node->subgraphIdentifier = $entityData['subgraphidentifier'];
+        $node->properties = new PropertyCollection(json_decode($entityData['properties'], true));
+        $node->nodeTypeName = $entityData['nodetypename'];
+        $node->name = $entityData['name'];
+        $node->removed = (bool)$entityData['removed'];
 
         return $node;
     }

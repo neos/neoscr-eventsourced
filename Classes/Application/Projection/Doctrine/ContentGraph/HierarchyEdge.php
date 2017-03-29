@@ -11,6 +11,8 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
+use Doctrine\ORM\EntityManager;
+use Neos\ContentRepository\EventSourced\Application\Persistence\DoctrinePersistableInterface;
 use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\Flow\Annotations as Flow;
 
@@ -19,8 +21,9 @@ use Neos\Flow\Annotations as Flow;
  *
  * @Flow\Entity
  */
-class HierarchyEdge
+class HierarchyEdge implements DoctrinePersistableInterface
 {
+
     /**
      * @var string
      */
@@ -47,5 +50,37 @@ class HierarchyEdge
         $this->parentNodesIdentifierInGraph = $parentNode->identifierInGraph;
         $this->subgraphIdentifier = $contentSubgraph->getIdentityHash();
         $this->childNodesIdentifierInGraph = $childNode->identifierInGraph;
+    }
+
+    public function keys()
+    {
+        return [
+            'parentNodesIdentifierInGraph' => $this->parentNodesIdentifierInGraph,
+            'subgraphIdentifier' => $this->subgraphIdentifier,
+            'childNodesIdentifierInGraph' => $this->childNodesIdentifierInGraph
+        ];
+    }
+
+    /**
+     * @param EntityManager $entityManager
+     *
+     * @return array
+     */
+    public function serialize(EntityManager $entityManager)
+    {
+        return [
+            'parentNodesIdentifierInGraph' => $this->parentNodesIdentifierInGraph,
+            'subgraphIdentifier' => $this->subgraphIdentifier,
+            'childNodesIdentifierInGraph' => $this->childNodesIdentifierInGraph,
+            'position' => $this->position
+        ];
+    }
+
+    /**
+     * @return string
+     */
+    public static function getTableName()
+    {
+        return 'neos_contentrepository_projection_hierarchyedge';
     }
 }

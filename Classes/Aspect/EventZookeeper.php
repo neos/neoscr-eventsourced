@@ -128,10 +128,10 @@ class EventZookeeper implements EventSubscriber
     {
         if ($event->getObject() instanceof ContentRepository\Model\NodeData) {
             /** @var ContentRepository\Model\NodeData $nodeData */
-            /*
             $nodeData = $event->getObject();
-
-            if ($nodeData->getPath() === '/sites') {
+            if ($nodeData->getPath() === '/') {
+                return;
+            } elseif ($nodeData->getPath() === '/sites') {
                 $this->eventPublisher->publish('neoscr-content', new Event\SystemNodeWasInserted(
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $nodeData->getIdentifier(),
@@ -139,7 +139,7 @@ class EventZookeeper implements EventSubscriber
                 ));
             } else {
                 $this->publishNodeDataCreation($nodeData);
-            }*/
+            }
         }
     }
 
@@ -176,7 +176,6 @@ class EventZookeeper implements EventSubscriber
 
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
-        /*
         $subgraphIdentity = [
             'editingSession' => $nodeData->getWorkspace()->getName()
         ];
@@ -199,12 +198,12 @@ class EventZookeeper implements EventSubscriber
                 $strangeDimensionValues
             );
             if ($fallbackNodeData) {
-                $this->eventPublisher->publish('neoscr-content', new Event\NodeVariantWasCreated(
+                $this->eventPublisher->publish('neoscr-content', new Event\NodeWasCreatedAsVariant(
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $this->persistenceManager->getIdentifierByObject($fallbackNodeData),
                     $dimensionValues,
                     $nodeData->getProperties(),
-                    Event\NodeVariantWasCreated::STRATEGY_EMPTY
+                    Event\NodeWasCreatedAsVariant::STRATEGY_EMPTY
                 ));
                 return;
             }
@@ -215,10 +214,8 @@ class EventZookeeper implements EventSubscriber
             $dimensionValues,
             $nodeData->getNodeType()->getName(),
             $this->persistenceManager->getIdentifierByObject($nodeData->getParent()),
-            $nodeData->getName(),
-            $nodeData->getIndex(),
+            '', // TODO: Find elder sibling
             $nodeData->getProperties()
         ));
-        */
     }
 }

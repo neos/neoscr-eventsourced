@@ -11,7 +11,8 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
-use Neos\ContentRepository\Domain as ContentRepository;
+use Doctrine\DBAL\Types\Type;
+use Doctrine\ORM\EntityManager;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
 
@@ -35,6 +36,7 @@ class PropertyCollection implements \ArrayAccess, \Iterator
 
     /**
      * @var array
+     * @Flow\Transient
      */
     protected $resolvedProperties;
 
@@ -42,6 +44,21 @@ class PropertyCollection implements \ArrayAccess, \Iterator
     public function __construct(array $properties)
     {
         $this->properties = $properties;
+    }
+
+    /**
+     * @param EntityManager $entityManager
+     *
+     * @return mixed
+     */
+    public function serialize($entityManager)
+    {
+        return Type::getType('flow_json_array')->convertToDatabaseValue($this->properties, $entityManager->getConnection()->getDatabasePlatform());
+    }
+
+    public function asRawArray()
+    {
+        return $this->properties;
     }
 
 
@@ -52,35 +69,38 @@ class PropertyCollection implements \ArrayAccess, \Iterator
 
     public function offsetGet($offset)
     {
-        if (is_array($this->properties[$offset]) && !isset($this->resolvedProperties[$offset])) {
-            if (isset($this->properties[$offset]['__flow_object_type'])) {
-                $this->resolveObject($this->properties[$offset]);
-            } else {
-                foreach ($this->properties[$offset] as $i => $propertyValue) {
-                    if (isset($this->properties[$offset][$i]['__flow_object_type'])) {
-                        $this->resolveObject($this->properties[$offset][$i]);
-                    }
-                }
-            }
-            $this->resolvedProperties[$offset] = true;
+        if (! isset($this->resolvedProperties[$offset])) {
+            $this->resolvedProperties[$offset] = $this->resolveObjectIfNecessary($this->properties[$offset]);
         }
-        return $this->properties[$offset];
+
+        return $this->resolvedProperties[$offset];
     }
 
     /**
      * @param $value
+     *
+     * @return object
      */
-    protected function resolveObject(&$value)
+    protected function resolveObjectIfNecessary($value)
     {
-        $value = $this->persistenceManager->getObjectByIdentifier(
-            $value['__identifier'],
-            $value['__flow_object_type']
-        );
+        if (isset($value['__identifier']) && isset($value['__flow_object_type'])) {
+            return $this->persistenceManager->getObjectByIdentifier(
+                $value['__identifier'],
+                $value['__flow_object_type']
+            );
+        } elseif (is_array($value)) {
+            return array_map(function ($element) {
+                return $this->resolveObjectIfNecessary($element);
+            }, $value);
+        } else {
+            return $value;
+        }
     }
 
     public function offsetSet($offset, $value)
     {
         $this->properties[$offset] = $value;
+        unset($this->resolvedProperties[$offset]);
     }
 
     public function offsetUnset($offset)

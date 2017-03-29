@@ -11,46 +11,74 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
-use Neos\EventSourcing\Projection\Doctrine\AbstractDoctrineFinder;
+use Neos\ContentRepository\EventSourced\Application\Persistence\AbstractReadModelFinder;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Persistence\QueryResultInterface;
 
 /**
- * The doctrine hierarchy edge finder
+ * The hierarchy edge finder
  *
- * @method QueryResultInterface|HierarchyEdge[] findByChildNodeIdentifierInGraph(string $childNodeIdentifierInGraph)
+ * @method HierarchyEdge[] findByChildNodeIdentifierInGraph(string $childNodeIdentifierInGraph)
  *
  * @Flow\Scope("singleton")
  */
-class HierarchyEdgeFinder extends AbstractDoctrineFinder
+class HierarchyEdgeFinder extends AbstractReadModelFinder
 {
     /**
-     * @param string $childNodeIdentifierInGraph
+     * @param string $childNodesIdentifierInGraph
      * @param array $subgraphIdentifiers
      * @return QueryResultInterface|HierarchyEdge[]
      */
-    public function findInboundByNodeAndSubgraphs(string $childNodeIdentifierInGraph, array $subgraphIdentifiers)
+    public function findInboundByNodeAndSubgraphs(string $childNodesIdentifierInGraph, array $subgraphIdentifiers)
     {
-        $query = $this->createQuery();
+        $queryResult = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT n.* FROM ' . $this->getReadModelTableName() . ' n
+ WHERE childNodesIdentifierInGraph = :childNodesIdentifierInGraph
+ AND subgraphIdentifier IN ("' . implode('","', $subgraphIdentifiers) . '")',
+            ['childNodesIdentifierInGraph' => $childNodesIdentifierInGraph]
+        )->fetchAll();
 
-        return $query->matching($query->logicalAnd([
-            $query->equals('childNodeIdentifierInGraph', $childNodeIdentifierInGraph),
-            $query->in('subgraphIdentifier', $subgraphIdentifiers)
-        ]))->execute();
+        $result = array_map(function ($edgeData) {
+            return $this->mapRawDataToEntity($edgeData);
+        }, $queryResult);
+
+        return $result;
     }
 
     /**
-     * @param string $parentNodeIdentifierInGraph
+     * @param string $parentNodesIdentifierInGraph
      * @param array $subgraphIdentifiers
-     * @return QueryResultInterface|HierarchyEdge[]
+     * @return HierarchyEdge[]
      */
-    public function findOutboundByNodeAndSubgraphs(string $parentNodeIdentifierInGraph, array $subgraphIdentifiers)
+    public function findOutboundByNodeAndSubgraphs(string $parentNodesIdentifierInGraph, array $subgraphIdentifiers)
     {
-        $query = $this->createQuery();
+        $queryResult = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT n.* FROM ' . $this->getReadModelTableName() . ' n
+ WHERE parentNodesIdentifierInGraph = :parentNodesIdentifierInGraph
+ AND subgraphIdentifier IN ("' . implode('","', $subgraphIdentifiers) . '")',
+            ['parentNodesIdentifierInGraph' => $parentNodesIdentifierInGraph]
+        )->fetchAll();
 
-        return $query->matching($query->logicalAnd([
-            $query->equals('parentNodeIdentifierInGraph', $parentNodeIdentifierInGraph),
-            $query->in('subgraphIdentifier', $subgraphIdentifiers)
-        ]))->execute();
+        $result = array_map(function ($edgeData) {
+            return $this->mapRawDataToEntity($edgeData);
+        }, $queryResult);
+
+        return $result;
+            }
+
+    protected function getReadModelTableName()
+    {
+        return HierarchyEdge::getTableName();
+    }
+
+    protected function mapRawDataToEntity(array $entityData)
+    {
+        $edge = new HierarchyEdge();
+
+        $edge->parentNodesIdentifierInGraph = $entityData['parentnodesidentifieringraph'];
+        $edge->subgraphIdentifier = $entityData['subgraphidentifier'];
+        $edge->childNodesIdentifierInGraph = $entityData['childnodesidentifieringraph'];
+
+        return $edge;
     }
 }

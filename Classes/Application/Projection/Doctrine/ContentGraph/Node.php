@@ -11,20 +11,21 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
+use Doctrine\ORM\EntityManager;
 use Neos\ContentRepository\Domain as ContentRepository;
+use Neos\ContentRepository\EventSourced\Application\Persistence\DoctrinePersistableInterface;
 use Neos\Flow\Annotations as Flow;
 
 /**
  * General purpose Node read model
  */
-class Node
+class Node implements DoctrinePersistableInterface
 {
     /**
      * @Flow\Inject
      * @var ContentRepository\Service\NodeTypeManager
      */
     protected $nodeTypeManager;
-
 
     /**
      * @var string
@@ -61,8 +62,46 @@ class Node
      */
     public $nodeTypeName = 'unstructured';
 
+    public function __construct()
+    {
+        $this->properties = new PropertyCollection([]);
+    }
+
     public function getNodeType(): ContentRepository\Model\NodeType
     {
         return $this->nodeTypeManager->getNodeType($this->nodeTypeName);
+    }
+
+    public function keys()
+    {
+        return [
+            'identifierInGraph' => $this->identifierInGraph
+        ];
+    }
+
+    /**
+     * @param EntityManager $entityManager
+     *
+     * @return array
+     */
+    public function serialize(EntityManager $entityManager)
+    {
+        return [
+            'identifierInGraph' => $this->identifierInGraph,
+            'identifierInSubgraph' => $this->identifierInSubgraph,
+            'subgraphIdentifier' => $this->subgraphIdentifier,
+            'name' => $this->name,
+            'removed' => $this->removed ? 1 : 0,
+            'properties' => $this->properties->serialize($entityManager),
+            'nodeTypeName' => $this->nodeTypeName
+        ];
+    }
+
+    /**
+     * @return string
+     */
+    public static function getTableName()
+    {
+        return 'neos_contentrepository_projection_node';
     }
 }
