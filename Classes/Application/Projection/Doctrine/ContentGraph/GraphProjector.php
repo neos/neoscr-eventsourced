@@ -234,9 +234,13 @@ class GraphProjector extends AbstractBaseProjector
                     $elderEdgeSibling->position,
                     $hierarchyEdge->subgraphIdentifier
                 );
-                $hierarchyEdge->position = ($elderEdgeSibling + $youngerEdgeSibling) / 2;
-                if ($elderEdgeSibling->position - $hierarchyEdge->position === 1) {
-                    return true;
+                if ($youngerEdgeSibling) {
+                    $hierarchyEdge->position = ($elderEdgeSibling->position + $youngerEdgeSibling->position) / 2;
+                    if ($elderEdgeSibling->position - $hierarchyEdge->position === 1) {
+                        return true;
+                    }
+                } else {
+                    $hierarchyEdge->position = $elderEdgeSibling->position + self::HIERARCHY_EDGE_POSITION_DEFAULT_OFFSET;
                 }
             } else {
                 $this->setHierarchyEdgeAsEldestSibling($hierarchyEdge);
