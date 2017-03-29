@@ -17,11 +17,13 @@ use Doctrine\ORM\Events;
 use Neos\ContentRepository\Domain as ContentRepository;
 use Neos\ContentRepository\EventSourced\Application\Service\FallbackGraphService;
 use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
+use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\ContentRepository\EventSourced\Utility\SubgraphUtility;
 use Neos\EventSourcing\Event\EventPublisher;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Aop\JoinPointInterface;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
+use Neos\Flow\Persistence\QueryInterface;
 
 /**
  * The event zookeeper
@@ -176,46 +178,125 @@ class EventZookeeper implements EventSubscriber
 
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
-        $subgraphIdentity = [
-            'editingSession' => $nodeData->getWorkspace()->getName()
-        ];
-        $dimensionValues = [];
-        foreach ($nodeData->getDimensionValues() as $dimensionName => $dimensionValue) {
-            $subgraphIdentity[$dimensionName] = reset($dimensionValue);
-            $dimensionValues[$dimensionName] = reset($dimensionValue);
-        }
-        $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
-        $subgraph = $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
+        $subgraph = $this->getSubgraph($nodeData);
+
         foreach ($subgraph->getFallback() as $fallbackSubgraph) {
-            $strangeDimensionValues = $fallbackSubgraph->getDimensionValues();
-            unset($strangeDimensionValues['editingSession']);
-            array_walk($strangeDimensionValues, function(&$value) {
-                $value = [$value];
-            });
+            $legacyDimensionValues = $this->getLegacyDimensionValues($fallbackSubgraph);
             $fallbackNodeData = $this->nodeDataRepository->findOneByIdentifier(
                 $nodeData->getIdentifier(),
                 $nodeData->getWorkspace(),
-                $strangeDimensionValues
+                $legacyDimensionValues
             );
             if ($fallbackNodeData) {
                 $this->eventPublisher->publish('neoscr-content', new Event\NodeWasCreatedAsVariant(
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $this->persistenceManager->getIdentifierByObject($fallbackNodeData),
-                    $dimensionValues,
+                    $subgraph->getDimensionValues(),
                     $nodeData->getProperties(),
                     Event\NodeWasCreatedAsVariant::STRATEGY_EMPTY
                 ));
+
                 return;
             }
         }
+
         $this->eventPublisher->publish('neoscr-content', new Event\NodeWasInserted(
             $this->persistenceManager->getIdentifierByObject($nodeData),
             $nodeData->getIdentifier(),
-            $dimensionValues,
+            $subgraph->getDimensionValues(),
             $nodeData->getNodeType()->getName(),
-            $this->persistenceManager->getIdentifierByObject($nodeData->getParent()),
-            '', // TODO: Find elder sibling
+            $this->persistenceManager->getIdentifierByObject($this->findParent($nodeData, $subgraph)),
+            $this->findElderSibling($nodeData, $subgraph) ? $this->persistenceManager->getIdentifierByObject($this->findElderSibling($nodeData, $subgraph)) : null,
+            $nodeData->getName(),
             $nodeData->getProperties()
         ));
+    }
+
+    protected function findElderSibling(ContentRepository\Model\NodeData $nodeData, ContentSubgraph $subgraph)
+    {
+        $priorities = $this->getLegacyFallbackPriorities($subgraph);
+
+        $query = $this->nodeDataRepository->createQuery();
+        return $query->matching($query->logicalAnd([
+            $query->equals('parentPathHash', md5($nodeData->getParentPath())),
+            $query->lessThan('index', $nodeData->getIndex()),
+            $query->equals('workspace', $nodeData->getWorkspace()->getName()),
+            $query->in('dimensionsHash', array_keys($priorities))
+        ]))->setOrderings([
+            'index' => QueryInterface::ORDER_DESCENDING
+        ])->execute()
+            ->getFirst();
+    }
+
+    protected function findParent(ContentRepository\Model\NodeData $nodeData, ContentSubgraph $subgraph): ContentRepository\Model\NodeData
+    {
+        if ($nodeData->getParentPath() === '/sites') {
+            $query = $this->nodeDataRepository->createQuery();
+            /** @var ContentRepository\Model\NodeData $parentNode */
+            $parentNode = $query->matching($query->logicalAnd([
+                $query->equals('pathHash', md5($nodeData->getParentPath()))
+            ]))->setLimit(1)
+                ->execute()
+                ->getFirst();
+
+            return $parentNode;
+        }
+        $priorities = $this->getLegacyFallbackPriorities($subgraph);
+
+        $query = $this->nodeDataRepository->createQuery();
+        $parentCandidates = $query->matching($query->logicalAnd([
+            $query->equals('workspace', $nodeData->getWorkspace()->getName()),
+            $query->equals('pathHash', md5($nodeData->getParentPath())),
+            $query->in('dimensionsHash', array_keys($priorities))
+        ]))->execute()->toArray();
+
+        usort($parentCandidates, function (ContentRepository\Model\NodeData $nodeDataA, ContentRepository\Model\NodeData $nodeDataB) use ($priorities) {
+            return $priorities[$nodeDataA->getDimensionsHash()] <=> $priorities[$nodeDataB->getDimensionsHash()];
+        });
+
+        return reset($parentCandidates);
+    }
+
+    protected function getLegacyFallbackPriorities(ContentSubgraph $subgraph): array
+    {
+        $priorities = [
+            md5(json_encode($this->getLegacyDimensionValues($subgraph))) => 0
+        ];
+
+        $fallbackSubgraphs = $subgraph->getFallback();
+        uasort($fallbackSubgraphs, function (ContentSubgraph $subgraphA, ContentSubgraph $subgraphB) {
+            return $subgraphA->getWeight() <=> $subgraphB->getWeight();
+        });
+        $priority = 1;
+        foreach ($fallbackSubgraphs as $fallbackSubgraph) {
+            $priorities[md5(json_encode($this->getLegacyDimensionValues($fallbackSubgraph)))] = $priority;
+            $priority++;
+        }
+
+        return $priorities;
+    }
+
+    protected function getLegacyDimensionValues(ContentSubgraph $subgraph): array
+    {
+        $legacyDimensionValues = $subgraph->getDimensionValues();
+        unset($legacyDimensionValues['editingSession']);
+        array_walk($legacyDimensionValues, function (&$value) {
+            $value = [$value->getValue()];
+        });
+
+        return $legacyDimensionValues;
+    }
+
+    protected function getSubgraph(ContentRepository\Model\NodeData $nodeData): ContentSubgraph
+    {
+        $subgraphIdentity = [
+            'editingSession' => $nodeData->getWorkspace()->getName()
+        ];
+        foreach ($nodeData->getDimensionValues() as $dimensionName => $dimensionValue) {
+            $subgraphIdentity[$dimensionName] = reset($dimensionValue);
+        }
+        $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
+
+        return $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
     }
 }

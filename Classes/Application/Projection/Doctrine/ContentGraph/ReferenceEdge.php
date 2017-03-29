@@ -11,7 +11,6 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
-use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\Flow\Annotations as Flow;
 use Doctrine\ORM\Mapping as ORM;
 

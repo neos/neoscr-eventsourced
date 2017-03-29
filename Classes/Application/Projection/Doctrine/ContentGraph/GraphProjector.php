@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\ContentGraph;
 
 /*
@@ -16,6 +17,7 @@ use Doctrine\ORM\EntityManager;
 use Neos\ContentRepository\EventSourced\Application\Persistence\Traits\GenericEntityQueryTrait;
 use Neos\ContentRepository\EventSourced\Application\Service\FallbackGraphService;
 use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
+use Neos\ContentRepository\EventSourced\Domain\Model\IntraDimension\ContentDimensionValue;
 use Neos\ContentRepository\EventSourced\Utility\SubgraphUtility;
 use Neos\EventSourcing\Projection\AbstractBaseProjector;
 use Neos\Flow\Annotations as Flow;
@@ -28,8 +30,9 @@ use Neos\Utility\Arrays;
  */
 class GraphProjector extends AbstractBaseProjector
 {
-
     use GenericEntityQueryTrait;
+
+    const HIERARCHY_EDGE_POSITION_DEFAULT_OFFSET = 128; // must be 2^n
 
     /**
      * @Flow\Inject
@@ -76,7 +79,9 @@ class GraphProjector extends AbstractBaseProjector
 
     public function whenNodeWasInserted(Event\NodeWasInserted $event)
     {
-        $this->getEntityManager()->transactional(function() use ($event) {
+        $subgraphsForRecalculation = [];
+
+        $this->getEntityManager()->transactional(function() use ($event, $subgraphsForRecalculation) {
             $subgraphIdentifier = $this->extractSubgraphIdentifierFromEvent($event);
 
             $node = new Node();
@@ -91,16 +96,23 @@ class GraphProjector extends AbstractBaseProjector
 
             $hierarchyEdge = new HierarchyEdge();
             $hierarchyEdge->connect($parentNode, $node, $subgraph);
-            $hierarchyEdge->position = 0; // TODO: POSITION???
+            $subgraphsForRecalculation[$subgraphIdentifier] = $this->assignPositionToHierarchyEdge($hierarchyEdge, $event->getElderSiblingIdentifier());
             $this->add($hierarchyEdge);
 
             foreach ($subgraph->getVariants() as $variantSubgraph) {
                 $variantHierarchyEdge = new HierarchyEdge();
+                $variantHierarchyEdge->name = $event->getPath();
                 $variantHierarchyEdge->connect($parentNode, $node, $variantSubgraph);
-                $variantHierarchyEdge->position = 0; // TODO: POSITION???
+                $subgraphsForRecalculation[$subgraphIdentifier] = $this->assignPositionToHierarchyEdge($variantHierarchyEdge, $event->getElderSiblingIdentifier());
                 $this->add($variantHierarchyEdge);
             }
         });
+
+        foreach ($subgraphsForRecalculation as $subgraphIdentifier => $recalculationNecessary) {
+            if ($recalculationNecessary) {
+                $this->recalculateEdgePositions($event->getParentIdentifier(), $subgraphIdentifier);
+            }
+        }
     }
 
     public function whenNodeWasCreatedAsVariant(Event\NodeWasCreatedAsVariant $event)
@@ -207,10 +219,62 @@ class GraphProjector extends AbstractBaseProjector
         });
     }
 
+    /**
+     * @param HierarchyEdge $hierarchyEdge
+     * @param string|null $elderSiblingIdentifier
+     * @return bool whether edge positions have to be recalculated or not
+     */
+    protected function assignPositionToHierarchyEdge(HierarchyEdge $hierarchyEdge, string $elderSiblingIdentifier = null)
+    {
+        if ($elderSiblingIdentifier) {
+            $elderEdgeSibling = $this->hierarchyEdgeFinder->findConnectingInSubgraph($hierarchyEdge->parentNodesIdentifierInGraph, $elderSiblingIdentifier, $hierarchyEdge->subgraphIdentifier);
+            if ($elderEdgeSibling) {
+                $youngerEdgeSibling = $this->hierarchyEdgeFinder->findEldestYoungerSibling(
+                    $hierarchyEdge->parentNodesIdentifierInGraph,
+                    $elderEdgeSibling->position,
+                    $hierarchyEdge->subgraphIdentifier
+                );
+                $hierarchyEdge->position = ($elderEdgeSibling + $youngerEdgeSibling) / 2;
+                if ($elderEdgeSibling->position - $hierarchyEdge->position === 1) {
+                    return true;
+                }
+            } else {
+                $this->setHierarchyEdgeAsEldestSibling($hierarchyEdge);
+            }
+        } else {
+            $this->setHierarchyEdgeAsEldestSibling($hierarchyEdge);
+        }
+
+        return false;
+    }
+
+    protected function setHierarchyEdgeAsEldestSibling(HierarchyEdge $hierarchyEdge)
+    {
+        $eldestEdgeSibling = $this->hierarchyEdgeFinder->findEldestSibling($hierarchyEdge->parentNodesIdentifierInGraph, $hierarchyEdge->subgraphIdentifier);
+        if ($eldestEdgeSibling) {
+            $hierarchyEdge->position = $eldestEdgeSibling->position - self::HIERARCHY_EDGE_POSITION_DEFAULT_OFFSET;
+        } else {
+            $hierarchyEdge->position = 0;
+        }
+    }
+
+    protected function recalculateEdgePositions(string $parentNodesIdentifierInGraph, string $subgraphIdentifier)
+    {
+        $position = 0;
+        foreach ($this->hierarchyEdgeFinder->findOrderedOutboundByParentNodeAndSubgraph($parentNodesIdentifierInGraph, $subgraphIdentifier) as $edge) {
+            $edge->position = $position;
+            $this->update($edge);
+            $position += self::HIERARCHY_EDGE_POSITION_DEFAULT_OFFSET;
+        }
+    }
 
     protected function extractSubgraphIdentifierFromEvent(Event\AbstractDimensionAwareEvent $event): string
     {
         $subgraphIdentity = $event->getContentDimensionValues();
+        array_walk($subgraphIdentity, function (ContentDimensionValue &$dimensionValue) {
+            $dimensionValue = $dimensionValue->getValue();
+        });
+
         /* @todo fetch from event stream vector instead */
         $subgraphIdentity['editingSession'] = 'live';
 

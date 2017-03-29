@@ -21,7 +21,7 @@ use Neos\Flow\Persistence\PersistenceManagerInterface;
  *
  * Takes care of lazily resolving entity properties
  */
-class PropertyCollection implements \ArrayAccess, \Iterator
+class PropertyCollection implements \ArrayAccess, \Iterator, \JsonSerializable
 {
     /**
      * @Flow\Inject
@@ -131,5 +131,15 @@ class PropertyCollection implements \ArrayAccess, \Iterator
     public function rewind()
     {
         reset($this->properties);
+    }
+
+    public function jsonSerialize(): array
+    {
+        return $this->properties;
+    }
+
+    public function toArray(): array
+    {
+        return $this->properties;
     }
 }

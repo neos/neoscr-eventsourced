@@ -43,11 +43,6 @@ class Node implements DoctrinePersistableInterface
     public $subgraphIdentifier;
 
     /**
-     * @var string
-     */
-    public $name;
-
-    /**
      * @var bool
      */
     public $removed = false;
@@ -62,10 +57,12 @@ class Node implements DoctrinePersistableInterface
      */
     public $nodeTypeName = 'unstructured';
 
+
     public function __construct()
     {
         $this->properties = new PropertyCollection([]);
     }
+
 
     public function getNodeType(): ContentRepository\Model\NodeType
     {
