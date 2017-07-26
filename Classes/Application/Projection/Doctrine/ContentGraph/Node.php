@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\ContentGraph;
 
 /*
@@ -42,16 +43,6 @@ class Node
     public $subgraphIdentifier;
 
     /**
-     * @var string
-     */
-    public $name;
-
-    /**
-     * @var bool
-     */
-    public $removed = false;
-
-    /**
      * @var PropertyCollection
      */
     public $properties;
@@ -60,6 +51,17 @@ class Node
      * @var string
      */
     public $nodeTypeName = 'unstructured';
+
+
+    public function __construct(string $identifierInGraph, string $identifierInSubgraph, string $subgraphIdentifier, PropertyCollection $properties, string $nodeTypeName)
+    {
+        $this->identifierInGraph = $identifierInGraph;
+        $this->identifierInSubgraph = $identifierInSubgraph;
+        $this->subgraphIdentifier = $subgraphIdentifier;
+        $this->properties = $properties;
+        $this->nodeTypeName = $nodeTypeName;
+    }
+
 
     public function getNodeType(): ContentRepository\Model\NodeType
     {

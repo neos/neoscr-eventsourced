@@ -112,4 +112,9 @@ class NodeWasMoved extends AbstractDimensionAwareEvent
     {
         return $this->strategy;
     }
+
+    public static function fromPayload(array $payload)
+    {
+        // TODO: Implement fromPayload() method.
+    }
 }

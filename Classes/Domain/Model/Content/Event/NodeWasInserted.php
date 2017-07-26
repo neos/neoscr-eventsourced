@@ -125,4 +125,35 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
     {
         return $this->properties;
     }
+
+    public function toArray(): array
+    {
+        return [
+            'contentDimensionValues' => $this->contentDimensionValues,
+            'variantIdentifier' => $this->variantIdentifier,
+            'identifier' => $this->identifier,
+            'nodeType' => $this->nodeType,
+            'parentIdentifier' => $this->parentIdentifier,
+            'elderSiblingIdentifier' => $this->elderSiblingIdentifier,
+            'properties' => $this->properties,
+        ];
+    }
+
+    function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    public static function fromPayload(array $payload): NodeWasInserted
+    {
+        return new NodeWasInserted(
+            $payload['variantIdentifier'],
+            $payload['identifier'],
+            $payload['contentDimensionValues'],
+            $payload['nodeType'],
+            $payload['parentIdentifier'],
+            $payload['elderSiblingIdentifier'],
+            $payload['properties']
+        );
+    }
 }

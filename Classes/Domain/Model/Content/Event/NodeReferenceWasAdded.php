@@ -92,4 +92,8 @@ class NodeReferenceWasAdded extends AbstractDimensionAwareEvent
     {
         return $this->olderSiblingNodeIdentifier;
     }
+
+    public static function fromPayload(array $payload)
+    {
+    }
 }

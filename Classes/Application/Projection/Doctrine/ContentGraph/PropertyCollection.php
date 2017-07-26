@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\ContentGraph;
 
 /*
@@ -64,6 +65,7 @@ class PropertyCollection implements \ArrayAccess, \Iterator
             }
             $this->resolvedProperties[$offset] = true;
         }
+
         return $this->properties[$offset];
     }
 
@@ -111,5 +113,10 @@ class PropertyCollection implements \ArrayAccess, \Iterator
     public function rewind()
     {
         reset($this->properties);
+    }
+
+    public function toArray(): array
+    {
+        return $this->properties;
     }
 }

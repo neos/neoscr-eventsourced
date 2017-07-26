@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
 
 /*
@@ -16,10 +17,11 @@ use Neos\Flow\Annotations as Flow;
 /**
  * A node variant was created
  */
-class NodeWasCreatedAsVariant extends AbstractDimensionAwareEvent
+class NodeVariantWasCreated extends AbstractDimensionAwareEvent implements \JsonSerializable
 {
-    const STRATEGY_COPY = 'copy';
     const STRATEGY_EMPTY = 'empty';
+    const STRATEGY_COPY = 'copy';
+
 
     /**
      * @var string
@@ -42,13 +44,6 @@ class NodeWasCreatedAsVariant extends AbstractDimensionAwareEvent
     protected $strategy;
 
 
-    /**
-     * @param string $variantIdentifier
-     * @param string $fallbackIdentifier
-     * @param array $contentDimensionValues
-     * @param array $properties
-     * @param string $strategy
-     */
     public function __construct(
         string $variantIdentifier,
         string $fallbackIdentifier,
@@ -64,40 +59,50 @@ class NodeWasCreatedAsVariant extends AbstractDimensionAwareEvent
     }
 
 
-    /**
-     * @return string
-     */
     public function getVariantIdentifier(): string
     {
         return $this->variantIdentifier;
     }
 
-    /**
-     * @return string
-     */
     public function getFallbackIdentifier(): string
     {
         return $this->fallbackIdentifier;
     }
 
-    /**
-     * @return array
-     */
     public function getProperties(): array
     {
         return $this->properties;
     }
 
-    /**
-     * @return string
-     */
     public function getStrategy(): string
     {
         return $this->strategy;
     }
 
-    public static function fromPayload(array $payload)
+    public function toArray(): array
     {
-        // TODO: Implement fromPayload() method.
+        return [
+            'contentDimensionValues' => $this->contentDimensionValues,
+            'variantIdentifier' => $this->variantIdentifier,
+            'fallbackIdentifier' => $this->fallbackIdentifier,
+            'properties' => $this->properties,
+            'strategy' => $this->strategy
+        ];
+    }
+
+    function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    public static function fromPayload(array $payload): NodeVariantWasCreated
+    {
+        return new NodeVariantWasCreated(
+            $payload['variantIdentifier'],
+            $payload['fallbackIdentifier'],
+            $payload['contentDimensionValues'],
+            $payload['properties'],
+            $payload['strategy']
+        );
     }
 }

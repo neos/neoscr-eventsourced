@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Aspect;
 
 /*
@@ -128,7 +129,6 @@ class EventZookeeper implements EventSubscriber
     {
         if ($event->getObject() instanceof ContentRepository\Model\NodeData) {
             /** @var ContentRepository\Model\NodeData $nodeData */
-            /*
             $nodeData = $event->getObject();
 
             if ($nodeData->getPath() === '/sites') {
@@ -139,7 +139,7 @@ class EventZookeeper implements EventSubscriber
                 ));
             } else {
                 $this->publishNodeDataCreation($nodeData);
-            }*/
+            }
         }
     }
 
@@ -163,6 +163,7 @@ class EventZookeeper implements EventSubscriber
         if ($event->getObject() instanceof ContentRepository\Model\NodeData) {
             /** @var ContentRepository\Model\NodeData $nodeData */
             $nodeData = $event->getObject();
+            $this->publishNodeDataRemoval($nodeData);
         }
     }
 
@@ -171,12 +172,12 @@ class EventZookeeper implements EventSubscriber
         if ($event->getObject() instanceof ContentRepository\Model\NodeData) {
             /** @var ContentRepository\Model\NodeData $nodeData */
             $nodeData = $event->getObject();
+            $this->publishNodeDataRemoval($nodeData);
         }
     }
 
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
-        /*
         $subgraphIdentity = [
             'editingSession' => $nodeData->getWorkspace()->getName()
         ];
@@ -190,7 +191,7 @@ class EventZookeeper implements EventSubscriber
         foreach ($subgraph->getFallback() as $fallbackSubgraph) {
             $strangeDimensionValues = $fallbackSubgraph->getDimensionValues();
             unset($strangeDimensionValues['editingSession']);
-            array_walk($strangeDimensionValues, function(&$value) {
+            array_walk($strangeDimensionValues, function (&$value) {
                 $value = [$value];
             });
             $fallbackNodeData = $this->nodeDataRepository->findOneByIdentifier(
@@ -206,19 +207,59 @@ class EventZookeeper implements EventSubscriber
                     $nodeData->getProperties(),
                     Event\NodeVariantWasCreated::STRATEGY_EMPTY
                 ));
+
                 return;
             }
         }
+        $elderSibling = $this->fetchElderSibling($nodeData);
         $this->eventPublisher->publish('neoscr-content', new Event\NodeWasInserted(
             $this->persistenceManager->getIdentifierByObject($nodeData),
             $nodeData->getIdentifier(),
             $dimensionValues,
             $nodeData->getNodeType()->getName(),
-            $this->persistenceManager->getIdentifierByObject($nodeData->getParent()),
-            $nodeData->getName(),
-            $nodeData->getIndex(),
+            $this->persistenceManager->getIdentifierByObject($this->fetchParent($nodeData)),
+            $elderSibling ? $this->persistenceManager->getIdentifierByObject($elderSibling) : '',
             $nodeData->getProperties()
         ));
-        */
+    }
+
+    protected function publishNodeDataRemoval(ContentRepository\Model\NodeData $nodeData)
+    {
+    }
+
+    /**
+     * @param ContentRepository\Model\NodeData|null $nodeData
+     * @return ContentRepository\Model\NodeData|null
+     */
+    protected function fetchParent(ContentRepository\Model\NodeData $nodeData)
+    {
+        return $this->nodeDataRepository->findOneByPath(
+            $nodeData->getParentPath(),
+            $nodeData->getWorkspace(),
+            $nodeData->getDimensionValues()
+        );
+    }
+
+    /**
+     * @param ContentRepository\Model\NodeData $nodeData
+     * @return ContentRepository\Model\NodeData|null
+     */
+    protected function fetchElderSibling(ContentRepository\Model\NodeData $nodeData)
+    {
+        /** @var ContentRepository\Model\NodeData $elderSibling */
+        $elderSibling = null;
+        foreach ($this->nodeDataRepository->findByParentAndNodeType(
+            $nodeData->getParentPath(),
+            null,
+            $nodeData->getWorkspace(),
+            $nodeData->getDimensionValues()) as $sibling) {
+            /** @var ContentRepository\Model\NodeData $sibling */
+            if ($sibling->getIndex() < $nodeData->getIndex()
+                && (!$elderSibling || $sibling->getIndex() > $elderSibling->getIndex())) {
+                $elderSibling = $sibling;
+            }
+        }
+
+        return $elderSibling;
     }
 }

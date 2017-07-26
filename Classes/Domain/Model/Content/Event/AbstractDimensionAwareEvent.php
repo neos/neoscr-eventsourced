@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
 
 /*
@@ -20,7 +21,7 @@ use Neos\Flow\Annotations as Flow;
 abstract class AbstractDimensionAwareEvent implements EventInterface
 {
     /**
-     * @var array
+     * @var array<string>
      */
     protected $contentDimensionValues = [];
 
@@ -32,6 +33,8 @@ abstract class AbstractDimensionAwareEvent implements EventInterface
     {
         $this->contentDimensionValues = $contentDimensionValues;
     }
+
+    abstract public static function fromPayload(array $payload);
 
 
     public function getContentDimensionValues(): array

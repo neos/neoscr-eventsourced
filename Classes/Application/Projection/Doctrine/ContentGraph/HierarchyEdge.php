@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\ContentGraph;
 
 /*
@@ -16,8 +17,6 @@ use Neos\Flow\Annotations as Flow;
 
 /**
  * General purpose Hierarchy Edge read model
- *
- * @Flow\Entity
  */
 class HierarchyEdge
 {
@@ -42,10 +41,22 @@ class HierarchyEdge
     public $position;
 
 
-    public function connect(Node $parentNode, Node $childNode, ContentSubgraph $contentSubgraph)
+    public function __construct(string $parentNodesIdentifierInGraph, string $childNodesIdentifierInGraph, string $subgraphIdentifier, int $position)
     {
-        $this->parentNodesIdentifierInGraph = $parentNode->identifierInGraph;
-        $this->subgraphIdentifier = $contentSubgraph->getIdentityHash();
-        $this->childNodesIdentifierInGraph = $childNode->identifierInGraph;
+        $this->parentNodesIdentifierInGraph = $parentNodesIdentifierInGraph;
+        $this->subgraphIdentifier = $subgraphIdentifier;
+        $this->childNodesIdentifierInGraph = $childNodesIdentifierInGraph;
+        $this->position = $position;
+    }
+
+
+    public static function asConnection(Node $parentNode, Node $childNode, ContentSubgraph $contentSubgraph, int $position)
+    {
+        return new HierarchyEdge(
+            $parentNode->identifierInGraph,
+            $childNode->identifierInGraph,
+            $contentSubgraph->getIdentityHash(),
+            $position
+        );
     }
 }

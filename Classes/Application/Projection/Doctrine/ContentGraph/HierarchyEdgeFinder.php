@@ -1,4 +1,5 @@
 <?php
+
 namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\ContentGraph;
 
 /*
@@ -11,46 +12,156 @@ namespace Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\Co
  * source code.
  */
 
-use Neos\EventSourcing\Projection\Doctrine\AbstractDoctrineFinder;
+use Doctrine\DBAL\Connection;
 use Neos\Flow\Annotations as Flow;
-use Neos\Flow\Persistence\QueryResultInterface;
 
 /**
- * The doctrine hierarchy edge finder
- *
- * @method QueryResultInterface|HierarchyEdge[] findByChildNodeIdentifierInGraph(string $childNodeIdentifierInGraph)
+ * The Doctrine DBAL hierarchy edge finder
  *
  * @Flow\Scope("singleton")
  */
-class HierarchyEdgeFinder extends AbstractDoctrineFinder
+class HierarchyEdgeFinder extends AbstractDbalFinder
 {
     /**
-     * @param string $childNodeIdentifierInGraph
+     * @param string $childNodesIdentifierInGraph
      * @param array $subgraphIdentifiers
-     * @return QueryResultInterface|HierarchyEdge[]
+     * @return array|HierarchyEdge[]
      */
-    public function findInboundByNodeAndSubgraphs(string $childNodeIdentifierInGraph, array $subgraphIdentifiers)
+    public function findInboundByNodeAndSubgraphs(string $childNodesIdentifierInGraph, array $subgraphIdentifiers): array
     {
-        $query = $this->createQuery();
+        $edges = [];
+        foreach ($this->getDatabaseConnection()->executeQuery(
+            'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
+ WHERE childnodesidentifieringraph = :childNodesIdentifierInGraph
+ AND subgraphidentifier IN (:subgraphIdentifiers)',
+            [
+                'childNodesIdentifierInGraph' => $childNodesIdentifierInGraph,
+                'subgraphIdentifiers' => $subgraphIdentifiers
+            ],
+            [
+                'subgraphIdentifiers' => Connection::PARAM_STR_ARRAY
+            ]
+        )->fetchAll() as $edgeData) {
+            $edges[] = $this->mapRawDataToEdge($edgeData);
+        }
 
-        return $query->matching($query->logicalAnd([
-            $query->equals('childNodeIdentifierInGraph', $childNodeIdentifierInGraph),
-            $query->in('subgraphIdentifier', $subgraphIdentifiers)
-        ]))->execute();
+        return $edges;
     }
 
     /**
-     * @param string $parentNodeIdentifierInGraph
+     * @param string $parentNodesIdentifierInGraph
      * @param array $subgraphIdentifiers
-     * @return QueryResultInterface|HierarchyEdge[]
+     * @return array|HierarchyEdge[]
      */
-    public function findOutboundByNodeAndSubgraphs(string $parentNodeIdentifierInGraph, array $subgraphIdentifiers)
+    public function findOutboundByNodeAndSubgraphs(string $parentNodesIdentifierInGraph, array $subgraphIdentifiers): array
     {
-        $query = $this->createQuery();
+        $edges = [];
+        foreach ($this->getDatabaseConnection()->executeQuery(
+            'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
+ WHERE parentnodesidentifieringraph = :parentNodesIdentifierInGraph
+ AND subgraphidentifier IN (:subgraphIdentifiers)',
+            [
+                'parentNodesIdentifierInGraph' => $parentNodesIdentifierInGraph,
+                'subgraphIdentifiers' => $subgraphIdentifiers
+            ],
+            [
+                'subgraphIdentifiers' => Connection::PARAM_STR_ARRAY
+            ]
+        )->fetchAll() as $edgeData) {
+            $edges[] = $this->mapRawDataToEdge($edgeData);
+        }
 
-        return $query->matching($query->logicalAnd([
-            $query->equals('parentNodeIdentifierInGraph', $parentNodeIdentifierInGraph),
-            $query->in('subgraphIdentifier', $subgraphIdentifiers)
-        ]))->execute();
+        return $edges;
+    }
+
+    /**
+     * @param string $childNodesIdentifierInGraph
+     * @param string $subgraphIdentifier
+     * @return HierarchyEdge|null
+     */
+    public function findInboundByNodeAndSubgraph(string $childNodesIdentifierInGraph, string $subgraphIdentifier)
+    {
+        $edgeData = $this->getDatabaseConnection()->executeQuery(
+            'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
+ WHERE childnodesidentifieringraph = :childNodesIdentifierInGraph
+ AND subgraphidentifier = :subgraphIdentifier',
+            [
+                'childNodesIdentifierInGraph' => $childNodesIdentifierInGraph,
+                'subgraphIdentifier' => $subgraphIdentifier
+            ]
+        )->fetch();
+
+        return $edgeData ? $this->mapRawDataToEdge($edgeData) : null;
+    }
+
+    /**
+     * @param string $parentNodesIdentifierInGraph
+     * @param string $subgraphIdentifier
+     * @return array|HierarchyEdge[]
+     */
+    public function findOutboundByNodeAndSubgraph(string $parentNodesIdentifierInGraph, string $subgraphIdentifier): array
+    {
+        $edges = [];
+        foreach ($this->getDatabaseConnection()->executeQuery(
+            'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
+ WHERE parentnodesidentifieringraph = :parentNodesIdentifierInGraph
+ AND subgraphidentifier = :subgraphIdentifier',
+            [
+                'parentNodesIdentifierInGraph' => $parentNodesIdentifierInGraph,
+                'subgraphIdentifier' => $subgraphIdentifier
+            ]
+        )->fetchAll() as $edgeData) {
+            $edges[] = $this->mapRawDataToEdge($edgeData);
+        }
+
+        return $edges;
+    }
+
+    /**
+     * @param HierarchyEdge $edge
+     * @return HierarchyEdge|null
+     */
+    public function findYoungerSibling(HierarchyEdge $edge)
+    {
+        $edgeData = $this->getDatabaseConnection()->executeQuery(
+            'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
+ WHERE parentnodesidentifieringraph = :parentNodesIdentifierInGraph
+ AND subgraphidentifier = :subgraphIdentifier
+ AND `position` > :position
+ ORDER BY `position` ASC',
+            [
+                'parentNodesIdentifierInGraph' => $edge->parentNodesIdentifierInGraph,
+                'subgraphIdentifier' => $edge->subgraphIdentifier,
+                'position' => $edge->position
+            ]
+        )->fetch();
+
+        return $edgeData ? $this->mapRawDataToEdge($edgeData) : null;
+    }
+
+    public function findEldestSibling(string $parentNodeIdentifierInGraph, string $subgraphIdentifier)
+    {
+        $edgeData = $this->getDatabaseConnection()->executeQuery(
+            'SELECT h.* FROM neos_contentrepository_projection_hierarchyedge h
+ WHERE parentnodesidentifieringraph = :parentNodesIdentifierInGraph
+ AND subgraphidentifier = :subgraphIdentifier
+ ORDER BY `position` ASC',
+            [
+                'parentNodesIdentifierInGraph' => $parentNodeIdentifierInGraph,
+                'subgraphIdentifier' => $subgraphIdentifier
+            ]
+        )->fetch();
+
+        return $edgeData ? $this->mapRawDataToEdge($edgeData) : null;
+    }
+
+    protected function mapRawDataToEdge(array $rawData): HierarchyEdge
+    {
+        return new HierarchyEdge(
+            $rawData['parentnodesidentifieringraph'],
+            $rawData['subgraphidentifier'],
+            $rawData['childnodesidentifieringraph'],
+            $rawData['position']
+        );
     }
 }

@@ -78,4 +78,9 @@ class NodeReferenceWasRemoved extends AbstractDimensionAwareEvent
     {
         return $this->referenceName;
     }
+
+    public static function fromPayload(array $payload)
+    {
+        // TODO: Implement fromPayload() method.
+    }
 }

@@ -60,4 +60,9 @@ class NodeWasRemoved extends AbstractDimensionAwareEvent
     {
         return $this->identifier;
     }
+
+    public static function fromPayload(array $payload)
+    {
+        // TODO: Implement fromPayload() method.
+    }
 }
