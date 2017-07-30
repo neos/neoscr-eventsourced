@@ -12,7 +12,6 @@ namespace Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
  */
 
 use Neos\Flow\Annotations as Flow;
-use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A node was inserted
@@ -65,7 +64,7 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
         array $contentDimensionValues,
         string $nodeType,
         string $parentIdentifier,
-        string $elderSiblingIdentifier,
+        string $elderSiblingIdentifier = null,
         array $properties
     ) {
         parent::__construct($contentDimensionValues);
@@ -111,9 +110,9 @@ class NodeWasInserted extends AbstractDimensionAwareEvent
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getElderSiblingIdentifier(): string
+    public function getElderSiblingIdentifier()
     {
         return $this->elderSiblingIdentifier;
     }
