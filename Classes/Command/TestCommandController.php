@@ -12,9 +12,10 @@ namespace Neos\ContentRepository\EventSourced\Command;
  * source code.
  */
 
+use Neos\Arboretum\Neo4jAdapter\Infrastructure\Service\Neo4jClient;
 use Neos\ContentRepository\Domain\Model\NodeInterface;
-use Neos\ContentRepository\EventSourced\Application\Projection\Doctrine\ContentGraph\Node;
-use Neos\ContentRepository\EventSourced\Application\Repository\ContentGraph;
+use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
+use Neos\EventSourcing\Event\EventPublisher;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Neos\Neos\Domain\Repository\SiteRepository;
@@ -28,12 +29,6 @@ class TestCommandController extends CommandController
 {
     /**
      * @Flow\Inject
-     * @var ContentGraph
-     */
-    protected $contentGraph;
-
-    /**
-     * @Flow\Inject
      * @var ContentContextFactory
      */
     protected $contentContextFactory;
@@ -44,18 +39,36 @@ class TestCommandController extends CommandController
      */
     protected $siteRepository;
 
+    /**
+     * @Flow\Inject
+     * @var EventPublisher
+     */
+    protected $eventPublisher;
+
+    /**
+     * @Flow\Inject
+     * @var \Neos\Arboretum\Neo4jAdapter\Domain\Repository\ContentGraph
+     */
+    protected $neo4jContentGraph;
+
+    /**
+     * @Flow\Inject
+     * @var \Neos\Arboretum\DoctrineDbalAdapter\Domain\Repository\ContentGraph
+     */
+    protected $dbalContentGraph;
+
+
+    public function publishSitesNodeCommand()
+    {
+        $this->eventPublisher->publish('neoscr-content', new Event\SystemNodeWasInserted(
+            'fc9e984d-225a-4446-907b-59c25bf5fd5f',
+            '80378b69-de58-4427-8b6d-3751036f7c7d',
+            'Neos.Neos:Sites'
+        ));
+    }
 
     public function traverseCommand()
     {
-        $subgraph = $this->contentGraph->getSubgraph('live', ['language' => 'en_US']);
-        $rootNode = $subgraph->findNodesByType('Neos.Demo:Homepage')[0];
-
-        $time = microtime(true);
-        $subgraph->traverse($rootNode, function (Node $node) {
-            #\Neos\Flow\var_dump($node->nodeTypeName, $node->properties['title'] ?? '');
-        });
-        \Neos\Flow\var_dump(round((microtime(true) - $time) * 1000));
-
         $site = $this->siteRepository->findFirstOnline();
         /** @var ContentContext $contentContext */
         $contentContext = $this->contentContextFactory->create([
@@ -67,10 +80,31 @@ class TestCommandController extends CommandController
 
         $siteNode = $contentContext->getCurrentSiteNode();
         $time = microtime(true);
-        $this->traverseNode($siteNode, function (NodeInterface $node) {
-            #\Neos\Flow\var_dump($node->getNodeType()->getName(), $node->getProperty('title'));
+        $count = 0;
+        $this->traverseNode($siteNode, function (NodeInterface $node) use(&$count) {
+            $count++;
         });
-        \Neos\Flow\var_dump(round((microtime(true) - $time) * 1000));
+        \Neos\Flow\var_dump(round((microtime(true) - $time) * 1000), 'Legacy: ' . $count);
+
+        $dbalSubgraph = $this->dbalContentGraph->getSubgraph('live', ['language' => 'en_US']);
+        $rootNode = $dbalSubgraph->findNodesByType('Neos.Demo:Homepage')[0];
+
+        $time = microtime(true);
+        $count = 0;
+        $dbalSubgraph->traverse($rootNode, function (NodeInterface $node) use(&$count) {
+            $count++;
+        });
+        \Neos\Flow\var_dump(round((microtime(true) - $time) * 1000), 'DBAL: ' . $count);
+
+        $neo4jSubgraph = $this->neo4jContentGraph->getSubgraph('live', ['language' => 'en_US']);
+        $rootNode = $neo4jSubgraph->findNodesByType('Neos.Demo:Homepage')[0];
+
+        $time = microtime(true);
+        $count = 0;
+        $neo4jSubgraph->traverse($rootNode, function (NodeInterface $node) use(&$count) {
+            $count++;
+        });
+        \Neos\Flow\var_dump(round((microtime(true) - $time) * 1000), 'neo4j: ' . $count);
     }
 
     protected function traverseNode(NodeInterface $node, callable $callback)
