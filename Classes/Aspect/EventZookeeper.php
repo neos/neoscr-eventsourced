@@ -23,6 +23,7 @@ use Neos\EventSourcing\Event\EventPublisher;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Aop\JoinPointInterface;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
+use Neos\Flow\Property\PropertyMapper;
 
 /**
  * The event zookeeper
@@ -63,6 +64,12 @@ class EventZookeeper implements EventSubscriber
      * @var ContentRepository\Repository\WorkspaceRepository
      */
     protected $workspaceRepository;
+
+    /**
+     * @Flow\Inject
+     * @var PropertyMapper
+     */
+    protected $propertyMapper;
 
 
     /**
@@ -188,6 +195,18 @@ class EventZookeeper implements EventSubscriber
         }
         $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
         $subgraph = $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
+        $properties = $nodeData->getProperties();
+        array_walk($properties, function (&$value) {
+            if (is_object($value)) {
+                $value = $this->mapObjectToArray($value);
+            } elseif (is_array($value)) {
+                foreach ($value as &$valueElement) {
+                    if (is_object($valueElement)) {
+                        $valueElement = $this->mapObjectToArray($valueElement);
+                    }
+                }
+            }
+        });
         foreach ($subgraph->getFallback() as $fallbackSubgraph) {
             $strangeDimensionValues = $fallbackSubgraph->getDimensionValues();
             unset($strangeDimensionValues['editingSession']);
@@ -204,7 +223,7 @@ class EventZookeeper implements EventSubscriber
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $this->persistenceManager->getIdentifierByObject($fallbackNodeData),
                     $dimensionValues,
-                    $nodeData->getProperties(),
+                    $properties,
                     Event\NodeVariantWasCreated::STRATEGY_EMPTY
                 ));
 
@@ -219,8 +238,21 @@ class EventZookeeper implements EventSubscriber
             $nodeData->getNodeType()->getName(),
             $this->persistenceManager->getIdentifierByObject($this->fetchParent($nodeData)),
             $elderSibling ? $this->persistenceManager->getIdentifierByObject($elderSibling) : '',
-            $nodeData->getProperties()
+            $properties
         ));
+    }
+
+    protected function mapObjectToArray($object): array
+    {
+        $identifier = $this->persistenceManager->getIdentifierByObject($object);
+        if ($identifier) {
+            return [
+                '__flow_object_type' => get_class($object),
+                '__identifier' => $identifier
+            ];
+        } else {
+            return $this->propertyMapper->convert($object, 'array');
+        }
     }
 
     protected function publishNodeDataRemoval(ContentRepository\Model\NodeData $nodeData)
