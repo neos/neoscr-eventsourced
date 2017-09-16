@@ -18,6 +18,7 @@ use Doctrine\ORM\Events;
 use Neos\ContentRepository\Domain as ContentRepository;
 use Neos\ContentRepository\EventSourced\Application\Service\FallbackGraphService;
 use Neos\ContentRepository\EventSourced\Domain\Model\Content\Event;
+use Neos\ContentRepository\EventSourced\Domain\Model\InterDimension\ContentSubgraph;
 use Neos\ContentRepository\EventSourced\Utility\SubgraphUtility;
 use Neos\EventSourcing\Event\EventPublisher;
 use Neos\Flow\Annotations as Flow;
@@ -185,28 +186,15 @@ class EventZookeeper implements EventSubscriber
 
     protected function publishNodeDataCreation(ContentRepository\Model\NodeData $nodeData)
     {
-        $subgraphIdentity = [
-            'editingSession' => $nodeData->getWorkspace()->getName()
-        ];
-        $dimensionValues = [];
-        foreach ($nodeData->getDimensionValues() as $dimensionName => $dimensionValue) {
-            $subgraphIdentity[$dimensionName] = reset($dimensionValue);
-            $dimensionValues[$dimensionName] = reset($dimensionValue);
-        }
-        $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
-        $subgraph = $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
         $properties = $nodeData->getProperties();
-        array_walk($properties, function (&$value) {
-            if (is_object($value)) {
-                $value = $this->mapObjectToArray($value);
-            } elseif (is_array($value)) {
-                foreach ($value as &$valueElement) {
-                    if (is_object($valueElement)) {
-                        $valueElement = $this->mapObjectToArray($valueElement);
-                    }
-                }
-            }
-        });
+        $this->preprocessProperties($properties);
+
+        $dimensionValues = [];
+        $subgraph = $this->fetchSubgraphForNodeData($nodeData);
+        foreach ($subgraph->getDimensionValues() as $dimensionName => $dimensionValue) {
+            $dimensionValues[$dimensionName] = $dimensionValue->getValue();
+        }
+
         foreach ($subgraph->getFallback() as $fallbackSubgraph) {
             $strangeDimensionValues = $fallbackSubgraph->getDimensionValues();
             unset($strangeDimensionValues['editingSession']);
@@ -218,7 +206,7 @@ class EventZookeeper implements EventSubscriber
                 $nodeData->getWorkspace(),
                 $strangeDimensionValues
             );
-            if ($fallbackNodeData) {
+            if ($fallbackNodeData instanceof ContentRepository\Model\NodeData) {
                 $this->eventPublisher->publish('neoscr-content', new Event\NodeVariantWasCreated(
                     $this->persistenceManager->getIdentifierByObject($nodeData),
                     $this->persistenceManager->getIdentifierByObject($fallbackNodeData),
@@ -237,9 +225,24 @@ class EventZookeeper implements EventSubscriber
             $dimensionValues,
             $nodeData->getNodeType()->getName(),
             $this->persistenceManager->getIdentifierByObject($this->fetchParent($nodeData)),
-            $elderSibling ? $this->persistenceManager->getIdentifierByObject($elderSibling) : '',
+            $elderSibling instanceof ContentRepository\Model\NodeData ? $this->persistenceManager->getIdentifierByObject($elderSibling) : '',
             $properties
         ));
+    }
+
+    protected function preprocessProperties(array & $properties)
+    {
+        array_walk($properties, function (&$value) {
+            if (is_object($value)) {
+                $value = $this->mapObjectToArray($value);
+            } elseif (is_array($value)) {
+                foreach ($value as &$valueElement) {
+                    if (is_object($valueElement)) {
+                        $valueElement = $this->mapObjectToArray($valueElement);
+                    }
+                }
+            }
+        });
     }
 
     protected function mapObjectToArray($object): array
@@ -253,6 +256,21 @@ class EventZookeeper implements EventSubscriber
         } else {
             return $this->propertyMapper->convert($object, 'array');
         }
+    }
+
+    protected function fetchSubgraphForNodeData(ContentRepository\Model\NodeData $nodeData): ContentSubgraph
+    {
+        $subgraphIdentity = [
+            'editingSession' => $nodeData->getWorkspace()->getName()
+        ];
+        $dimensionValues = [];
+        foreach ($nodeData->getDimensionValues() as $dimensionName => $dimensionValue) {
+            $subgraphIdentity[$dimensionName] = reset($dimensionValue);
+            $dimensionValues[$dimensionName] = reset($dimensionValue);
+        }
+        $subgraphIdentifier = SubgraphUtility::hashIdentityComponents($subgraphIdentity);
+
+        return $this->fallbackGraphService->getInterDimensionalFallbackGraph()->getSubgraph($subgraphIdentifier);
     }
 
     protected function publishNodeDataRemoval(ContentRepository\Model\NodeData $nodeData)
