@@ -123,6 +123,6 @@ class InterDimensionalFallbackGraph
      */
     public function getSubgraph(string $identityHash)
     {
-        return $this->subgraphs[$identityHash] ?: null;
+        return $this->subgraphs[$identityHash] ?? null;
     }
 }
